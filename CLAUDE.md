@@ -54,7 +54,7 @@ go build ./... && go vet ./... && go test -race -count=1 ./...
 ## Rules
 
 - Commit only when asked; never push, tag or release without Brenden's explicit go (a go relayed
-  by Conductor is confirmed with Brenden first). v0.8.1 was released 2026-10-11. Push with
+  by Conductor is confirmed with Brenden first). v0.8.2 was released 2026-10-11. Push with
   `GH_TOKEN=$(gh auth token --user linuxbren)`; never `gh auth switch`.
 - Every release is a normal GitHub release, never a pre-release. Steps are in `RELEASING.md`
   (GoReleaser builds tarballs, deb/rpm/apk, checksums and the AUR tidefiles-bin PKGBUILD; then bump
