@@ -190,6 +190,19 @@ var bindingGroups = []bindingGroup{
 	}},
 }
 
+// actionKey is each action's first key: its stable name (palette recents).
+var actionKey = func() map[action]string {
+	m := map[action]string{}
+	for _, g := range bindingGroups {
+		for _, b := range g.bindings {
+			if _, ok := m[b.act]; !ok {
+				m[b.act] = b.keys[0]
+			}
+		}
+	}
+	return m
+}()
+
 var keyIndex = func() map[string]action {
 	m := map[string]action{}
 	for _, g := range bindingGroups {

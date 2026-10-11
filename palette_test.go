@@ -182,3 +182,19 @@ func TestKeysFor(t *testing.T) {
 		}
 	}
 }
+
+// Recent actions are saved by id, so ids must be unique and must not be
+// action numbers, which shift whenever an action is added or removed.
+func TestPaletteIDsAreUniqueAndStable(t *testing.T) {
+	m := testModel(t, t.TempDir())
+	seen := map[string]bool{}
+	for _, cm := range m.commands() {
+		if seen[cm.id] {
+			t.Errorf("duplicate palette id %q", cm.id)
+		}
+		seen[cm.id] = true
+		if strings.HasPrefix(cm.id, "act:") || strings.HasPrefix(cm.id, "key::") {
+			t.Errorf("palette id %q (%s) is not stable", cm.id, cm.title)
+		}
+	}
+}

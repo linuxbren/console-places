@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -75,8 +76,9 @@ func TestDetectInstall(t *testing.T) {
 	}
 }
 
-// fakeRelease serves a GitHub "latest release" whose archive holds a
-// tidefiles that prints tag; tamper corrupts the archive after its checksum.
+// fakeRelease serves GitHub's release list: tag, whose archive holds a
+// tidefiles that prints tag (tamper corrupts the archive after its
+// checksum), plus older releases with notes, a draft and a pre-release.
 func fakeRelease(t *testing.T, tag string, tamper bool) {
 	t.Helper()
 	var tgz bytes.Buffer
@@ -102,11 +104,17 @@ func fakeRelease(t *testing.T, tag string, tamper bool) {
 	var srv *httptest.Server
 	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/latest":
-			json.NewEncoder(w).Encode(map[string]any{"tag_name": tag, "assets": []map[string]string{
-				{"name": name, "browser_download_url": srv.URL + "/" + name},
-				{"name": "checksums.txt", "browser_download_url": srv.URL + "/checksums.txt"},
-			}})
+		case "/releases":
+			json.NewEncoder(w).Encode([]map[string]any{
+				{"tag_name": "v100.0.0", "draft": true, "body": "## New\n- **Draft thing**"},
+				{"tag_name": "v100.0.1", "prerelease": true, "body": "## New\n- **Pre-release thing**"},
+				{"tag_name": tag, "body": "## New\n\n- **Fresh thing** in the preview\n- **Second thing**: details\n\n## Changed\n\n- **Not news**", "assets": []map[string]string{
+					{"name": name, "browser_download_url": srv.URL + "/" + name},
+					{"name": "checksums.txt", "browser_download_url": srv.URL + "/checksums.txt"},
+				}},
+				{"tag_name": "v0.7.5", "body": "## New\n- **Middle thing**\n- plain bullet, no headline"},
+				{"tag_name": "v0.7.0", "body": "## New\n- **Already have this**"},
+			})
 		case "/" + name:
 			w.Write(archive)
 		case "/checksums.txt":
@@ -116,7 +124,7 @@ func fakeRelease(t *testing.T, tag string, tamper bool) {
 		}
 	}))
 	t.Cleanup(srv.Close)
-	t.Setenv("TIDEFILES_UPDATE_URL", srv.URL+"/latest")
+	t.Setenv("TIDEFILES_UPDATE_URL", srv.URL+"/releases")
 }
 
 // oldBinary writes a stand-in tidefiles v0.7.0 and makes it the running
@@ -136,7 +144,7 @@ func oldBinary(t *testing.T) string {
 func TestInstallRelease(t *testing.T) {
 	fakeRelease(t, "v9.9.9", false)
 	exe := oldBinary(t)
-	rel, err := fetchRelease()
+	rel, _, err := fetchRelease("v0.7.0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +162,7 @@ func TestInstallRelease(t *testing.T) {
 func TestInstallReleaseRefusesABadDownload(t *testing.T) {
 	fakeRelease(t, "v9.9.9", true)
 	exe := oldBinary(t)
-	rel, err := fetchRelease()
+	rel, _, err := fetchRelease("v0.7.0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,6 +192,17 @@ func TestAutomaticUpdateAsksToRestart(t *testing.T) {
 	m = m2.(model)
 	if m.modal == nil || m.modal.purpose != "restart" || m.upd.ready != "v99.0.0" {
 		t.Fatalf("want the restart question, got modal %+v, upd %+v", m.modal, m.upd)
+	}
+	prompt := strings.Join(m.modal.lines, "\n")
+	for _, want := range []string{"New since v0.7.0:", "  • Fresh thing\n  • Second thing\n  • Middle thing\n"} {
+		if !strings.Contains(prompt, want) {
+			t.Errorf("restart prompt lacks %q:\n%s", want, prompt)
+		}
+	}
+	for _, not := range []string{"Draft", "Pre-release", "Not news", "Already have", "plain bullet"} {
+		if strings.Contains(prompt, not) {
+			t.Errorf("restart prompt has %q:\n%s", not, prompt)
+		}
 	}
 	if b, _ := os.ReadFile(m.upd.exe); !strings.Contains(string(b), "v99.0.0") {
 		t.Fatal("binary not replaced")
@@ -249,4 +268,38 @@ func TestUpdateDue(t *testing.T) {
 func send(m model, key string) model {
 	m2, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(key)})
 	return m2.(model)
+}
+
+func TestHeadlines(t *testing.T) {
+	notes := "## New\n\n- **Animated GIFs** in the preview\n* **Copy text (`Y`)**: drag\n- Copy with `Y` (replaced later)\n- **\x1b[31mEvil\x1b[0m**\n\n## Install\n\n- **Static binaries**\n"
+	got := headlines(notes)
+	want := []string{"Animated GIFs", "Copy text (Y)", "[31mEvil[0m"}
+	if !slices.Equal(got, want) {
+		t.Errorf("headlines = %q, want %q", got, want)
+	}
+}
+
+func TestNewsIsCappedAndNotesWhenSkippingReleases(t *testing.T) {
+	u := updateState{since: "v0.7.0", news: []string{"a", "b", "c", "d", "e", "f"}}
+	lines := u.newsLines()
+	if len(lines) != 1+maxNews+2 || !strings.Contains(lines[maxNews+1], "and 2 more") {
+		t.Errorf("news lines %q", lines)
+	}
+	if note := u.newsNote(); note != " (a, +5 more)" {
+		t.Errorf("note %q", note)
+	}
+	if (updateState{}).newsLines() != nil || (updateState{}).newsNote() != "" {
+		t.Error("no news should add nothing")
+	}
+}
+
+func TestNotifyOnlySaysWhatsNew(t *testing.T) {
+	fakeRelease(t, "v99.0.0", false)
+	m := testModel(t, t.TempDir())
+	m.cfg.Updates = updatesNotify
+	m.upd = updateState{kind: installSelf, exe: oldBinary(t)}
+	m2, _ := m.Update(checkUpdate(false)())
+	if msg := m2.(model).msg; !strings.Contains(msg, "v99.0.0 is available (Fresh thing, +2 more) · U installs it") {
+		t.Errorf("notify message %q", msg)
+	}
 }

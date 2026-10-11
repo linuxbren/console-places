@@ -26,6 +26,11 @@
    gh release edit vX.Y.Z --notes-file notes.md
    ```
    (GoReleaser keeps existing notes, so re-running the workflow never overwrites them.)
+   Write each feature under `## New` as `- **Short headline** — details`. tidefiles shows those bold
+   headlines (up to four, newest release first, every release since the user's version) in its
+   restart prompt and in the notify-only message, so keep them short (about 50 characters), and
+   don't bold bullets that aren't features. Fix a published release's notes the same way if a
+   feature it lists is later removed.
 4. Update the Arch package to the new version:
    ```sh
    cd contrib/arch

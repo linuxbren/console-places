@@ -8,7 +8,9 @@ package main
 // something else (a distro package, Nix, go install) are never touched; they
 // get a note with the command that updates them. A local development build
 // never checks. Settings → Updates: automatic (default), notify only, off; U
-// checks, installs or restarts by hand whatever the setting.
+// checks, installs or restarts by hand whatever the setting. The restart
+// prompt (and the notify-only message) say what is new: the bold headlines of
+// the "## New" section of every release since the running version.
 
 import (
 	"archive/tar"
@@ -30,12 +32,14 @@ import (
 	"regexp"
 	"runtime"
 	"runtime/debug"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
 	"golang.org/x/sys/unix"
 )
 
@@ -51,23 +55,29 @@ const (
 	updateRepo     = "linuxbren/tidefiles"
 	releasesPage   = "github.com/" + updateRepo + "/releases"
 	maxArchiveSize = 64 << 20
+	maxNews        = 4  // headlines in the restart prompt
+	maxNewsWidth   = 56 // cells per headline
 	// restartEnv tells a restarted tidefiles to bring its tabs back whatever
 	// the "Tabs at startup" setting, and to say which version it now is.
 	restartEnv = "TIDEFILES_RESTARTED"
 )
 
-// updateURL is the GitHub API address of the latest release;
-// TIDEFILES_UPDATE_URL replaces it (tests point it at a local server).
+// updateURL is the GitHub API address of the recent releases (a list, so
+// the news covers every version skipped); TIDEFILES_UPDATE_URL replaces it
+// (tests point it at a local server, which may also answer with one release).
 func updateURL() string {
 	if u := os.Getenv("TIDEFILES_UPDATE_URL"); u != "" {
 		return u
 	}
-	return "https://api.github.com/repos/" + updateRepo + "/releases/latest"
+	return "https://api.github.com/repos/" + updateRepo + "/releases?per_page=30"
 }
 
 type release struct {
-	Tag    string `json:"tag_name"`
-	Assets []struct {
+	Tag        string `json:"tag_name"`
+	Body       string `json:"body"`
+	Draft      bool   `json:"draft"`
+	Prerelease bool   `json:"prerelease"`
+	Assets     []struct {
 		Name string `json:"name"`
 		URL  string `json:"browser_download_url"`
 	} `json:"assets"`
@@ -102,10 +112,13 @@ type updateState struct {
 	busy  bool     // a check or an install is running
 	avail *release // a newer release not yet installed
 	ready string   // a version installed and waiting for a restart
+	news  []string // what is new in avail / ready, newest release first
+	since string   // the version the news starts from
 }
 
 type updateCheckedMsg struct {
 	rel    *release
+	news   []string
 	err    error
 	manual bool // U, not the daily check: report "already the latest" too
 }
@@ -205,9 +218,10 @@ func (m model) updateDue(now time.Time) bool {
 }
 
 func checkUpdate(manual bool) tea.Cmd {
+	cur := currentVersion()
 	return func() tea.Msg {
-		rel, err := fetchRelease()
-		return updateCheckedMsg{rel: rel, err: err, manual: manual}
+		rel, news, err := fetchRelease(cur)
+		return updateCheckedMsg{rel: rel, news: news, err: err, manual: manual}
 	}
 }
 
@@ -236,19 +250,109 @@ func httpGet(url string, limit int64) ([]byte, error) {
 	return body, err
 }
 
-func fetchRelease() (*release, error) {
-	body, err := httpGet(updateURL(), 1<<20)
+// fetchRelease returns the newest release and what is new in it and every
+// other release since version cur.
+func fetchRelease(cur string) (*release, []string, error) {
+	body, err := httpGet(updateURL(), 4<<20)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	var rel release
-	if err := json.Unmarshal(body, &rel); err != nil {
-		return nil, fmt.Errorf("reading the release: %w", err)
+	var rels []release
+	if err := json.Unmarshal(body, &rels); err != nil {
+		var one release
+		if json.Unmarshal(body, &one) != nil {
+			return nil, nil, fmt.Errorf("reading the releases: %w", err)
+		}
+		rels = []release{one}
 	}
-	if !releaseVersion.MatchString(rel.Tag) {
-		return nil, fmt.Errorf("unexpected release tag %q", rel.Tag)
+	var latest *release
+	for i := range rels {
+		r := &rels[i]
+		if r.Draft || r.Prerelease || !releaseVersion.MatchString(r.Tag) {
+			continue
+		}
+		if latest == nil || newerVersion(r.Tag, latest.Tag) {
+			latest = r
+		}
 	}
-	return &rel, nil
+	if latest == nil {
+		return nil, nil, errors.New("no release found")
+	}
+	return latest, releaseNews(rels, cur, latest.Tag), nil
+}
+
+// releaseNews lists the headlines of the releases after from up to to,
+// newest first, without repeats.
+func releaseNews(rels []release, from, to string) []string {
+	var in []release
+	for _, r := range rels {
+		if !r.Draft && !r.Prerelease && newerVersion(r.Tag, from) && !newerVersion(r.Tag, to) {
+			in = append(in, r)
+		}
+	}
+	sort.Slice(in, func(i, j int) bool { return newerVersion(in[i].Tag, in[j].Tag) })
+	var news []string
+	seen := map[string]bool{}
+	for _, r := range in {
+		for _, h := range headlines(r.Body) {
+			if !seen[strings.ToLower(h)] {
+				seen[strings.ToLower(h)] = true
+				news = append(news, h)
+			}
+		}
+	}
+	return news
+}
+
+// headlines picks the bold lead-ins of the bullets under a release's
+// "## New" heading ("- **Animated GIFs** in the preview…" → "Animated
+// GIFs"). Release notes are written that way on purpose (RELEASING.md).
+func headlines(body string) []string {
+	var out []string
+	inNew := false
+	for _, line := range strings.Split(body, "\n") {
+		t := strings.TrimSpace(line)
+		if strings.HasPrefix(t, "#") {
+			inNew = strings.EqualFold(strings.TrimSpace(strings.TrimLeft(t, "#")), "new")
+			continue
+		}
+		if !inNew || !(strings.HasPrefix(t, "- **") || strings.HasPrefix(t, "* **")) {
+			continue
+		}
+		h, _, ok := strings.Cut(t[4:], "**")
+		h = strings.TrimSpace(strings.TrimRight(strings.ReplaceAll(sanitize(h), "`", ""), ":"))
+		if ok && h != "" {
+			out = append(out, h)
+		}
+	}
+	return out
+}
+
+// newsLines is what is new, for the restart prompt.
+func (u updateState) newsLines() []string {
+	if len(u.news) == 0 {
+		return nil
+	}
+	lines := []string{"New since " + u.since + ":"}
+	for i, h := range u.news {
+		if i == maxNews {
+			lines = append(lines, fmt.Sprintf("  • and %d more: %s", len(u.news)-maxNews, releasesPage))
+			break
+		}
+		lines = append(lines, "  • "+ansi.Truncate(h, maxNewsWidth, "…"))
+	}
+	return append(lines, "")
+}
+
+// newsNote is the first headline, for one-line messages.
+func (u updateState) newsNote() string {
+	switch len(u.news) {
+	case 0:
+		return ""
+	case 1:
+		return " (" + ansi.Truncate(u.news[0], maxNewsWidth, "…") + ")"
+	}
+	return fmt.Sprintf(" (%s, +%d more)", ansi.Truncate(u.news[0], maxNewsWidth, "…"), len(u.news)-1)
 }
 
 func installUpdate(rel *release, exe string) tea.Cmd {
@@ -355,15 +459,15 @@ func (m model) onUpdateChecked(msg updateCheckedMsg) (model, tea.Cmd) {
 		}
 		return m, nil
 	}
-	m.upd.avail = msg.rel
+	m.upd.avail, m.upd.news, m.upd.since = msg.rel, msg.news, cur
 	switch {
 	case m.upd.kind != installSelf:
-		m.setMsg("tidefiles "+msg.rel.Tag+" is available · update with: "+m.upd.hint, false)
+		m.setMsg("tidefiles "+msg.rel.Tag+" is available"+m.upd.newsNote()+" · update with: "+m.upd.hint, false)
 	case m.cfg.Updates == updatesAuto:
 		m.upd.busy = true
 		return m, installUpdate(msg.rel, m.upd.exe)
 	default:
-		m.setMsg("tidefiles "+msg.rel.Tag+" is available · U installs it", false)
+		m.setMsg("tidefiles "+msg.rel.Tag+" is available"+m.upd.newsNote()+" · U installs it", false)
 	}
 	return m, nil
 }
@@ -386,12 +490,12 @@ func (m model) onUpdateInstalled(msg updateInstalledMsg) (model, tea.Cmd) {
 }
 
 func (m *model) openRestart() {
-	m.openConfirm("restart", "update installed", []string{
-		"tidefiles " + m.upd.ready + " is installed.",
+	lines := append([]string{"tidefiles " + m.upd.ready + " is installed.", ""}, m.upd.newsLines()...)
+	m.openConfirm("restart", "update installed", append(lines,
 		"Restart into it now? Your tabs come back.",
 		"",
 		"n keeps working; the new version starts next time.",
-	}, nil)
+	), nil)
 }
 
 // updateAction is U: restart into an installed update, install an
@@ -407,7 +511,7 @@ func (m model) updateAction() (model, tea.Cmd) {
 		m.setMsg("downloading tidefiles "+m.upd.avail.Tag+"…", false)
 		return m, installUpdate(m.upd.avail, m.upd.exe)
 	case m.upd.avail != nil:
-		m.setMsg("tidefiles "+m.upd.avail.Tag+" is available · update with: "+m.upd.hint, false)
+		m.setMsg("tidefiles "+m.upd.avail.Tag+" is available"+m.upd.newsNote()+" · update with: "+m.upd.hint, false)
 	case m.upd.kind == installDev:
 		m.setMsg("this is a development build ("+currentVersion()+"); release builds update themselves", false)
 	default:

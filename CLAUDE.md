@@ -32,7 +32,9 @@ One `main` package, one file per concern:
 - `update.go` daily release check + self-update (`U`; Settings → Updates). Only a release binary in a
   user-writable folder replaces itself (checksum-verified, `--version` sanity run, atomic rename,
   then a restart prompt that re-execs with `TIDEFILES_RESTARTED`); packages / Nix / `go install`
-  get a hint; dev builds never check. Tests use `TIDEFILES_UPDATE_URL` (TestMain points it nowhere).
+  get a hint; dev builds never check. It reads the releases list, and the restart prompt lists the
+  bold `## New` headlines of every release since the running version (RELEASING.md). Tests use
+  `TIDEFILES_UPDATE_URL` (TestMain points it nowhere).
 
 ## Build and test
 

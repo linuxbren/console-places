@@ -161,7 +161,7 @@ func (m model) commands() []command {
 		{title: "Settings…", synonyms: "preferences options configure tabs startup", act: actSettings, group: "Settings"},
 		{title: "Theme…", synonyms: "colors colours appearance omarchy", act: actTheme, group: "Settings"},
 		{title: onOff(m.cfg.ShowHidden, "Hide hidden files", "Show hidden files"), synonyms: "dotfiles hidden toggle", act: actHidden, group: "Settings"},
-		{title: onOff(m.cfg.SortDesc, "Sort ascending", "Sort descending (reverse)"), synonyms: "order reverse", act: actSortRev, group: "Settings"},
+		{id: "sort:reverse", title: onOff(m.cfg.SortDesc, "Sort ascending", "Sort descending (reverse)"), synonyms: "order reverse", act: actSortRev, group: "Settings"},
 		{title: "Quit", synonyms: "exit close", act: actQuit, group: "App"},
 	}
 	for _, key := range []string{"name", "size", "modified", "type"} {
@@ -197,7 +197,10 @@ func (m model) commands() []command {
 	var out []command
 	for _, cm := range c {
 		if cm.id == "" {
-			cm.id = fmt.Sprintf("act:%d", cm.act)
+			// Recent actions are saved by id, so it must outlast versions: an
+			// action's key does (one key, one meaning), while titles change
+			// with state and action numbers shift as actions come and go.
+			cm.id = "key:" + actionKey[cm.act] + ":" + cm.group
 		}
 		if cm.valid != nil && !cm.valid(m) {
 			continue

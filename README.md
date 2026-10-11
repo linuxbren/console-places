@@ -59,7 +59,8 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
 - **Settings page** — `S` lists every preference (tabs at startup, theme, hidden files, sort, preview
   pane, word wrap, markdown, image previews, updates); `←`/`→` change one, and it's saved straight away.
 - **Keeps itself up to date** — release binaries check for a new version once a day, install it after
-  verifying its checksum, and ask before restarting (tabs come back). `U` does it by hand; see
+  verifying its checksum, and ask before restarting (tabs come back), listing what's new since your
+  version so you can jump straight in. `U` does it by hand; see
   [Updates](#install).
 - **Archives** — `enter` on a zip/tar/7z/rar browses it like a read-only folder (`←` leaves);
   `X` extracts archives here (into a folder named after the archive, unless it has a single
@@ -130,7 +131,8 @@ Check any of them with `tidefiles --version`.
 **Updates.** Once a day tidefiles checks GitHub for a new release, in the background. A release binary
 installed as above (in a folder you can write, like `~/.local/bin`) updates itself: it downloads the
 new release, checks it against the release's `checksums.txt`, makes sure it runs, swaps it in, and asks
-whether to restart into it (your tabs come back); say no and it starts next time. Packages, the Arch
+whether to restart into it (your tabs come back), with the new features of every release since yours;
+say no and it starts next time. Packages, the Arch
 package, Nix and `go install` are never replaced behind their backs: tidefiles tells you a new version
 is out and the command that updates it. `U` checks, installs or restarts by hand. Settings (`S`) →
 Updates: install automatically (the default), notify only, or off.
