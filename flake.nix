@@ -6,7 +6,7 @@
   outputs = { self, nixpkgs }:
     let
       # Bump with each release (RELEASING.md).
-      version = "0.7.0";
+      version = "0.8.0";
       systems = [ "x86_64-linux" "aarch64-linux" ];
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
     in
