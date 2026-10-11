@@ -208,7 +208,7 @@ func gifPreview(p preview, path string, e entry, o previewOpts) preview {
 		return p
 	}
 	f, _, _ := a.frame(0)
-	p.img, p.lines, p.anim = f.img, f.lines, a
+	p.img, p.lines, p.anim, p.blocks = f.img, f.lines, a, f.img == nil
 	return p
 }
 
@@ -220,7 +220,7 @@ func (m *model) stepAnim(msg animTickMsg) tea.Cmd {
 		a.stop()
 		return nil
 	}
-	if m.modal != nil || m.pickerOpen || m.tsel != nil {
+	if m.modal != nil || m.pickerOpen {
 		return animTick(a, msg.i, msg.loop, animPaused)
 	}
 	f, ok, more := a.frame(msg.i)

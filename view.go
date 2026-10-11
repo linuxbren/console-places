@@ -18,9 +18,6 @@ func (m model) View() string {
 	}
 	inner, rows := m.geometry()
 	m.syncGraphics(inner, rows)
-	if m.tsel != nil {
-		return m.textSelView()
-	}
 
 	parentTitle := tildePath(filepath.Dir(m.cwd))
 	files := len(m.entries) - len(m.trashRows())
@@ -173,7 +170,7 @@ func (m model) renderList(ents []entry, cursor, offset, width, rows int, main bo
 // kitty) belongs over the preview pane right now, if any.
 func (m model) syncGraphics(inner [3]int, rows int) {
 	img := m.pv.img
-	if m.gfx == nil || img == nil || m.pv.key != m.pvKey || m.modal != nil || m.pickerOpen || m.tsel != nil || m.cfg.HidePreview {
+	if m.gfx == nil || img == nil || m.pv.key != m.pvKey || m.modal != nil || m.pickerOpen || m.cfg.HidePreview {
 		if m.gfx != nil {
 			m.gfx.set(nil, "")
 		}
@@ -210,7 +207,7 @@ func (m model) drawGraphicsNow() {
 // painted in the selection colour across the pane's width.
 func (m model) previewLines(width int) []string {
 	if m.pv.hlTo <= m.pv.hlFrom {
-		return m.pv.lines
+		return m.selectionLines(m.pv.lines)
 	}
 	bg := m.theme.Selected
 	if bg == "" {
@@ -222,7 +219,7 @@ func (m model) previewLines(width int) []string {
 	for i := m.pv.hlFrom; i < min(m.pv.hlTo, len(out)); i++ {
 		out[i] = paintBackground(out[i], width, on)
 	}
-	return out
+	return m.selectionLines(out)
 }
 
 // paintBackground applies the background sequence on to line, re-applying it

@@ -23,7 +23,8 @@ One `main` package, one file per concern:
   the UI goroutine. `anim.go` animated GIFs: frames composited per disposal rule, encoded in the
   background, stepped by `animTickMsg` (the `*animation` pointer is the generation id; a tick for
   one no longer in `m.pv` stops it); sixel/kitty frames go out via `gfxOut.flush` since the text
-  frame doesn't change. `textsel.go` `Y`: preview text full screen with mouse capture off.
+  frame doesn't change. `psel.go`: mouse drag selection inside the preview (tidefiles keeps the
+  mouse, since terminals capture it per window); release copies the file's own text via `segments`.
 - `ops.go` / `fsops.go` file operations; `jobs.go` background jobs with progress + cancel (paste,
   extract, compress); `archive.go` / `compress.go`; `trash.go` (freedesktop trash, pinned Trash row,
   new window); `tabs.go`; `places.go`; `clipboard.go` (Wayland ext-data-control owner, X11 xclip/xsel,

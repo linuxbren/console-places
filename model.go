@@ -94,7 +94,7 @@ type model struct {
 
 	pv       preview
 	pvKey    string
-	tsel     *textSel // select-text view (Y), when open
+	psel     *previewSel // mouse selection in the preview
 	pvPath   string
 	pvScroll int
 
@@ -581,8 +581,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m, cmd = m.handleMouse(msg)
 	case tea.KeyMsg:
 		switch {
-		case m.tsel != nil:
-			m, cmd = m.handleTextSelKey(msg)
 		case m.pickerOpen:
 			m, cmd = m.handlePickerKey(msg)
 		case m.modal != nil:
@@ -625,6 +623,7 @@ func (m *model) finishOp(res opResult) {
 
 func (m model) handleKey(msg tea.KeyMsg) (model, tea.Cmd) {
 	m.msg = ""
+	m.psel = nil
 	act := keyIndex[msg.String()]
 	if msg.Paste {
 		// The terminal's own paste (Omarchy's Super+V arrives as Shift+Insert,
@@ -927,8 +926,6 @@ func (m model) perform(act action) (model, tea.Cmd) {
 		if hasCur && !cur.isDir {
 			return m, editFile(curPath)
 		}
-	case actSelectText:
-		return m, m.openTextSelect()
 	case actCopyPath:
 		paths := m.targetPaths()
 		if len(paths) > 0 {
@@ -1047,8 +1044,11 @@ func (m model) handlePickerKey(msg tea.KeyMsg) (model, tea.Cmd) {
 // ---- mouse -------------------------------------------------------------
 
 func (m model) handleMouse(msg tea.MouseMsg) (model, tea.Cmd) {
-	if m.modal != nil || m.pickerOpen || m.tsel != nil {
+	if m.modal != nil || m.pickerOpen {
 		return m, nil
+	}
+	if cmd, used := m.mouseSelect(msg); used {
+		return m, cmd
 	}
 	w := m.columnWidths()
 	_, rows := m.geometry()

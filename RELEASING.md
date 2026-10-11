@@ -32,8 +32,9 @@
    sed -i 's/^pkgver=.*/pkgver=X.Y.Z/; s/^pkgrel=.*/pkgrel=1/' PKGBUILD
    updpkgsums && makepkg --printsrcinfo > .SRCINFO
    makepkg -f   # builds, runs the tests, packages (-d if Go comes from mise, not pacman)
+   rm -rf src pkg *.pkg.tar.zst *.tar.gz   # makepkg's work dirs break `go build ./...` in the repo
    ```
-   and commit it.
+   and commit the PKGBUILD and .SRCINFO.
 5. Check what users get:
    - the tarball matches `checksums.txt` and `tidefiles --version` says vX.Y.Z;
    - `go install …@latest` gives vX.Y.Z. Use a scratch `GOPATH` and `GOBIN`, since a global

@@ -29,12 +29,12 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
   <tr>
     <td><img src="docs/screenshots/settings.png" alt="The settings page: tabs at startup, theme, sorting, previews and updates (Osaka Jade theme)"></td>
     <td><img src="docs/screenshots/gif-preview.webp" alt="An animated GIF (a Mandelbrot zoom) playing in the preview pane, sharp sixel in foot (Ristretto theme)"></td>
-    <td><img src="docs/screenshots/select-text.png" alt="The Y view: a syntax-highlighted Go file full screen, ready to drag-select and copy with the terminal (Hackerman theme)"></td>
+    <td><img src="docs/screenshots/select-text.png" alt="Dragging over a syntax-highlighted Go file in the preview selects it; letting go copies the file's text (Hackerman theme)"></td>
   </tr>
   <tr>
     <td align="center">Settings (<code>S</code>) · Osaka Jade</td>
     <td align="center">Animated GIFs, played in the preview · Ristretto</td>
-    <td align="center"><code>Y</code>: drag to select preview text, copy with your terminal · Hackerman</td>
+    <td align="center">Drag in the preview to copy text · Hackerman</td>
   </tr>
 </table>
 
@@ -43,10 +43,9 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
   kitty/ghostty, half-block fallback anywhere else), animated GIFs, PDF first pages, video thumbnails with length, resolution and codec, syntax-highlighted code
   in your Omarchy colors, rendered markdown (`m` shows the source), pretty-printed JSON, archive contents, audio tags, folder contents.
 - **Word-wrapped preview** — long lines wrap at word boundaries; `w` toggles truncation.
-- **Copy text from the preview** — `Y` shows the preview's text full screen with the mouse released, so
-  your terminal's own selection takes just the file's text (copy as usual, e.g. `ctrl+shift+c` in foot);
-  long lines stay whole (`←`/`→` scroll sideways), `esc` goes back. In the normal view, `shift`+drag
-  also selects, but across all three panes.
+- **Copy text from the preview** — drag over the preview to select; letting go copies it to the clipboard
+  as the file's own text (tabs kept, wrapped lines joined). The selection stays inside the preview pane;
+  dragging past its edge scrolls. A click or any key clears it.
 - **Shortcut strip + help palette** — common keys are always in the status bar. `?` lists every action
   by category with its key; type to filter (names, synonyms or keys), `enter` runs it. It also holds the
   settings without a key (sort mode, image previews), and your recent actions come first.
@@ -159,6 +158,6 @@ Settings (theme, hidden files, wrap, sort, bookmarks) are remembered in
 
 Arrow keys first; vim keys work too. Press `?` for every action: type to find one, `enter` runs it.
 `space` select · `SUPER+C`/`X`/`V` copy/cut/paste (plain `c`/`x`/`v` work too) · `d` trash · `ctrl+z` undo · `F2` rename ·
-`n`/`N` new file/folder · `/` filter · `f` find · `F` search inside files · `X` extract · `Z` compress · `ctrl+t`/`ctrl+w` tabs · `ctrl+n` new window · `alt+t` trash · `s` sort · `S` settings · `b` places · `i` properties · `P` permissions · `o` open with · `Y` select preview text · `T` theme.
+`n`/`N` new file/folder · `/` filter · `f` find · `F` search inside files · `X` extract · `Z` compress · `ctrl+t`/`ctrl+w` tabs · `ctrl+n` new window · `alt+t` trash · `s` sort · `S` settings · `b` places · `i` properties · `P` permissions · `o` open with · `T` theme. Drag over the preview to copy text.
 
 `SUPER+C` needs a one-time Hyprland snippet on Omarchy — see [Install](#install).

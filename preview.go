@@ -97,9 +97,19 @@ type preview struct {
 	anim    *animation // a playing GIF: img or lines is its current frame
 	frame   int
 	loading bool
-	hlFrom  int // lines[hlFrom:hlTo] are the highlighted source line, when hlTo > hlFrom
+	blocks  bool // lines are a half-block picture, not text
+	hlFrom  int  // lines[hlFrom:hlTo] are the highlighted source line, when hlTo > hlFrom
 	hlTo    int
+	// For copying a mouse selection as the file's own text (text previews
+	// only): the source lines with tabs intact, and where each display line
+	// starts in them. Without it a selection copies what is on screen.
+	src  []string
+	segs []segment
 }
+
+// segment places a display line in the source: line src, starting at rune
+// off of that line with tabs expanded (src < 0: not file text).
+type segment struct{ src, off int }
 
 // buildPreview renders e (inside dir) for the preview pane.
 func buildPreview(dir string, e entry, o previewOpts) preview {
@@ -179,7 +189,7 @@ func imagePreview(p preview, path string, e entry, kind previewKind, o previewOp
 	case protoKitty:
 		p.img, err = renderKitty(img, o.width, o.rows, o.cellW, o.cellH, o.bg)
 	default:
-		p.lines = renderBlocks(img, o.width, o.rows, o.cellW, o.cellH, o.bg)
+		p.lines, p.blocks = renderBlocks(img, o.width, o.rows, o.cellW, o.cellH, o.bg), true
 	}
 	if err != nil {
 		p.img, p.lines = nil, []string{"  cannot encode image: " + errText(err)}
@@ -314,9 +324,12 @@ func textPreview(p preview, path string, e entry, o previewOpts) preview {
 	if n := len(src); n > 1 && src[n-1] == "" {
 		src = src[:n-1]
 	}
+	raw := make([]string, len(src))
 	for i, l := range src {
-		src[i] = expandTabs(sanitize(l))
+		raw[i] = sanitize(l)
+		src[i] = expandTabs(raw[i])
 	}
+	expanded := append([]string(nil), src...)
 	joined := strings.Join(src, "\n")
 	if hl, lang := highlight(joined, e.name, o.syn); lang != "" {
 		joined = hl
@@ -324,10 +337,12 @@ func textPreview(p preview, path string, e entry, o previewOpts) preview {
 	}
 	var starts []int
 	p.lines, starts = fitLinesMap(strings.Split(joined, "\n"), o, previewMaxLines)
+	p.src, p.segs = raw, segmentsOf(p.lines, starts, expanded)
 	head := 0
 	if first > 1 {
 		head = 2
 		p.lines = append([]string{fmt.Sprintf("… from line %d", first), ""}, p.lines...)
+		p.segs = append([]segment{{-1, 0}, {-1, 0}}, p.segs...)
 	}
 	if o.line > 0 {
 		p.meta += fmt.Sprintf(" · line %d", o.line)
