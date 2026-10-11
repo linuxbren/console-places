@@ -1,6 +1,6 @@
 pkgbase = tidefiles
 	pkgdesc = Keyboard-first terminal file manager that follows your Omarchy theme
-	pkgver = 0.8.0
+	pkgver = 0.8.1
 	pkgrel = 1
 	url = https://github.com/linuxbren/tidefiles
 	arch = x86_64
@@ -18,7 +18,7 @@ pkgbase = tidefiles
 	optdepends = ffmpeg: audio tags in previews
 	optdepends = xdg-utils: open files in their default app
 	optdepends = xdg-terminal-exec: open a terminal here
-	source = tidefiles-0.8.0.tar.gz::https://github.com/linuxbren/tidefiles/archive/v0.8.0.tar.gz
-	sha256sums = 4860318e5001044763f183db2ad58f4aa311c5466c2aa59f7525c8c0bdeed605
+	source = tidefiles-0.8.1.tar.gz::https://github.com/linuxbren/tidefiles/archive/v0.8.1.tar.gz
+	sha256sums = 7de489519835d0278635534b153f8aec055f2ce79c8c672ade47702af7304f66
 
 pkgname = tidefiles
