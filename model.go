@@ -94,6 +94,7 @@ type model struct {
 
 	pv       preview
 	pvKey    string
+	tsel     *textSel // select-text view (Y), when open
 	pvPath   string
 	pvScroll int
 
@@ -513,11 +514,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmd = m.buildPreviewCmd(msg.key)
 		}
 	case previewReadyMsg:
-		if msg.pv.key == m.pvKey {
-			m.pv = msg.pv
-			m.scrollToJump()
-			m.clampPreviewScroll()
+		if msg.pv.key != m.pvKey {
+			if msg.pv.anim != nil {
+				msg.pv.anim.stop()
+			}
+			break
 		}
+		m.pv = msg.pv
+		m.scrollToJump()
+		m.clampPreviewScroll()
+		if m.pv.anim != nil {
+			cmd = m.stepAnim(animTickMsg{a: m.pv.anim})
+		}
+	case animTickMsg:
+		cmd = m.stepAnim(msg)
 	case opDoneMsg:
 		m.finishOp(msg.res)
 	case findBatchMsg:
@@ -571,6 +581,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m, cmd = m.handleMouse(msg)
 	case tea.KeyMsg:
 		switch {
+		case m.tsel != nil:
+			m, cmd = m.handleTextSelKey(msg)
 		case m.pickerOpen:
 			m, cmd = m.handlePickerKey(msg)
 		case m.modal != nil:
@@ -915,6 +927,8 @@ func (m model) perform(act action) (model, tea.Cmd) {
 		if hasCur && !cur.isDir {
 			return m, editFile(curPath)
 		}
+	case actSelectText:
+		return m, m.openTextSelect()
 	case actCopyPath:
 		paths := m.targetPaths()
 		if len(paths) > 0 {
@@ -1033,7 +1047,7 @@ func (m model) handlePickerKey(msg tea.KeyMsg) (model, tea.Cmd) {
 // ---- mouse -------------------------------------------------------------
 
 func (m model) handleMouse(msg tea.MouseMsg) (model, tea.Cmd) {
-	if m.modal != nil || m.pickerOpen {
+	if m.modal != nil || m.pickerOpen || m.tsel != nil {
 		return m, nil
 	}
 	w := m.columnWidths()

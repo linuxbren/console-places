@@ -132,6 +132,7 @@ type overlay struct {
 	clrRow, clrCol   int // cell rectangle to blank when the image goes away
 	clrCols, clrRows int
 	kitty            bool
+	frameOf          string // set on animation frames: the animation's key
 }
 
 // gfxOut wraps the terminal so out-of-band images (sixel/kitty) can be drawn
@@ -140,7 +141,7 @@ type overlay struct {
 // flickers. It embeds *os.File so Bubble Tea still sees a real terminal.
 type gfxOut struct {
 	*os.File
-	mu    sync.Mutex
+	mu    sync.Mutex // held across each terminal write: Write (renderer) and flush (animation)
 	want  *overlay
 	drawn *overlay
 	bg    string // SGR sequence for the blank fill when erasing
@@ -164,29 +165,51 @@ func bgSGR(c lipgloss.Color) string {
 
 func (g *gfxOut) Write(p []byte) (int, error) {
 	g.mu.Lock()
-	want, drawn, bg := g.want, g.drawn, g.bg
-	g.mu.Unlock()
-	if want == nil && drawn == nil {
+	defer g.mu.Unlock()
+	if g.want == nil && g.drawn == nil {
 		return g.File.Write(p)
 	}
-
 	var b bytes.Buffer
-	if drawn != nil && (want == nil || want.key != drawn.key) {
-		b.WriteString(eraseSeq(drawn, bg))
-		drawn = nil
-	}
+	g.eraseStale(&b)
 	b.Write(p)
-	if want != nil {
-		b.WriteString(drawSeq(want))
-		drawn = want
+	if g.want != nil {
+		b.WriteString(drawSeq(g.want))
+		g.drawn = g.want
 	}
-	g.mu.Lock()
-	g.drawn = drawn
-	g.mu.Unlock()
 	if _, err := g.File.Write(b.Bytes()); err != nil {
 		return 0, err
 	}
 	return len(p), nil
+}
+
+// flush draws the wanted image now if it is not the one on screen: an
+// animation frame changes only the image, so Bubble Tea has nothing to write.
+func (g *gfxOut) flush() {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.want == nil || (g.drawn != nil && g.drawn.key == g.want.key) {
+		return
+	}
+	var b bytes.Buffer
+	g.eraseStale(&b)
+	b.WriteString(drawSeq(g.want))
+	g.drawn = g.want
+	g.File.Write(b.Bytes())
+}
+
+// eraseStale blanks the drawn image unless the wanted one replaces it in
+// place (the next animation frame), which would only make it flicker.
+func (g *gfxOut) eraseStale(b *bytes.Buffer) {
+	d, w := g.drawn, g.want
+	if d == nil || (w != nil && (w.key == d.key || samePlace(w, d))) {
+		return
+	}
+	b.WriteString(eraseSeq(d, g.bg))
+	g.drawn = nil
+}
+
+func samePlace(a, b *overlay) bool {
+	return a.frameOf != "" && a.frameOf == b.frameOf && a.row == b.row && a.col == b.col
 }
 
 func drawSeq(o *overlay) string {

@@ -20,7 +20,10 @@ One `main` package, one file per concern:
 - `modal.go` modals; `palette.go` (`?`), `settings.go` (`S`), `perms.go` (`P`), `find.go` (`f`),
   `grep.go` (`F`).
 - `preview.go` (+ `markdown.go`, `image.go`, `gfx.go`, `syntax.go`) previews; heavy kinds build off
-  the UI goroutine.
+  the UI goroutine. `anim.go` animated GIFs: frames composited per disposal rule, encoded in the
+  background, stepped by `animTickMsg` (the `*animation` pointer is the generation id; a tick for
+  one no longer in `m.pv` stops it); sixel/kitty frames go out via `gfxOut.flush` since the text
+  frame doesn't change. `textsel.go` `Y`: preview text full screen with mouse capture off.
 - `ops.go` / `fsops.go` file operations; `jobs.go` background jobs with progress + cancel (paste,
   extract, compress); `archive.go` / `compress.go`; `trash.go` (freedesktop trash, pinned Trash row,
   new window); `tabs.go`; `places.go`; `clipboard.go` (Wayland ext-data-control owner, X11 xclip/xsel,

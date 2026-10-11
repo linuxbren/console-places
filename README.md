@@ -38,9 +38,13 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
 
 - **Three panes** — parent, current folder, and a preview (yazi-style). `shift+←/→` resizes the preview, `p` hides it.
 - **A preview that understands your files** — real inline images (sixel in foot/wezterm/mlterm, kitty graphics in
-  kitty/ghostty, half-block fallback anywhere else), PDF first pages, video thumbnails, syntax-highlighted code
+  kitty/ghostty, half-block fallback anywhere else), animated GIFs, PDF first pages, video thumbnails, syntax-highlighted code
   in your Omarchy colors, rendered markdown (`m` shows the source), pretty-printed JSON, archive contents, audio tags, folder contents.
 - **Word-wrapped preview** — long lines wrap at word boundaries; `w` toggles truncation.
+- **Copy text from the preview** — `Y` shows the preview's text full screen with the mouse released, so
+  your terminal's own selection takes just the file's text (copy as usual, e.g. `ctrl+shift+c` in foot);
+  long lines stay whole (`←`/`→` scroll sideways), `esc` goes back. In the normal view, `shift`+drag
+  also selects, but across all three panes.
 - **Shortcut strip + help palette** — common keys are always in the status bar. `?` lists every action
   by category with its key; type to filter (names, synonyms or keys), `enter` runs it. It also holds the
   settings without a key (sort mode, image previews), and your recent actions come first.
@@ -153,6 +157,6 @@ Settings (theme, hidden files, wrap, sort, bookmarks) are remembered in
 
 Arrow keys first; vim keys work too. Press `?` for every action: type to find one, `enter` runs it.
 `space` select · `SUPER+C`/`X`/`V` copy/cut/paste (plain `c`/`x`/`v` work too) · `d` trash · `ctrl+z` undo · `F2` rename ·
-`n`/`N` new file/folder · `/` filter · `f` find · `F` search inside files · `X` extract · `Z` compress · `ctrl+t`/`ctrl+w` tabs · `ctrl+n` new window · `alt+t` trash · `s` sort · `S` settings · `b` places · `i` properties · `P` permissions · `o` open with · `T` theme.
+`n`/`N` new file/folder · `/` filter · `f` find · `F` search inside files · `X` extract · `Z` compress · `ctrl+t`/`ctrl+w` tabs · `ctrl+n` new window · `alt+t` trash · `s` sort · `S` settings · `b` places · `i` properties · `P` permissions · `o` open with · `Y` select preview text · `T` theme.
 
 `SUPER+C` needs a one-time Hyprland snippet on Omarchy — see [Install](#install).

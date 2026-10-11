@@ -93,7 +93,9 @@ type preview struct {
 	title   string
 	meta    string
 	lines   []string
-	img     *imgSeq // out-of-band image (sixel/kitty) drawn over the pane
+	img     *imgSeq    // out-of-band image (sixel/kitty) drawn over the pane
+	anim    *animation // a playing GIF: img or lines is its current frame
+	frame   int
 	loading bool
 	hlFrom  int // lines[hlFrom:hlTo] are the highlighted source line, when hlTo > hlFrom
 	hlTo    int
@@ -109,6 +111,9 @@ func buildPreview(dir string, e entry, o previewOpts) preview {
 	case kindDir:
 		return dirPreview(p, path, o)
 	case kindImage, kindPDF, kindVideo:
+		if kind == kindImage && strings.EqualFold(filepath.Ext(e.name), ".gif") {
+			return gifPreview(p, path, e, o)
+		}
 		return imagePreview(p, path, e, kind, o)
 	case kindArchive:
 		if out, err := run("bsdtar", "-tf", path); err == nil {

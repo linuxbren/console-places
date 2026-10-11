@@ -47,6 +47,7 @@ const (
 	actTerminal
 	actEdit
 	actCopyPath
+	actSelectText
 	actNewTab
 	actCloseTab
 	actNextTab
@@ -144,6 +145,7 @@ var bindingGroups = []bindingGroup{
 		{actProps, []string{"i"}, "i", "properties"},
 		{actPerms, []string{"P"}, "P", "permissions (chmod), here or in properties"},
 		{actCopyPath, []string{"y"}, "y", "copy path as text"},
+		{actSelectText, []string{"Y"}, "Y", "select preview text with the mouse (full screen; esc back)"},
 		{actExtract, []string{"X"}, "X", "extract archive(s) here  (enter on an archive browses it)"},
 		{actCompress, []string{"Z"}, "Z", "compress into .zip or .tar.gz"},
 	}},
@@ -242,7 +244,7 @@ var allowedInArchive = map[action]bool{
 	actHome: true, actGoto: true, actPlaces: true, actSelect: true, actSelectAll: true, actInvert: true,
 	actEscape: true, actFilter: true, actSort: true, actSortRev: true, actHidden: true, actWrap: true,
 	actMarkdown: true, actTogglePreview: true, actPreviewWider: true, actPreviewNarrower: true,
-	actScrollDown: true, actScrollUp: true, actRefresh: true, actTheme: true, actHelp: true, actUpdate: true, actQuit: true, actSettings: true,
+	actScrollDown: true, actScrollUp: true, actSelectText: true, actRefresh: true, actTheme: true, actHelp: true, actUpdate: true, actQuit: true, actSettings: true,
 	actExtract: true, actNewTab: true, actGoTrash: true, actNewWindow: true, actCloseTab: true, actNextTab: true, actPrevTab: true,
 	actTab1: true, actTab2: true, actTab3: true, actTab4: true, actTab5: true, actTab6: true,
 	actTab7: true, actTab8: true, actTab9: true,
