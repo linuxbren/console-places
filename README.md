@@ -28,11 +28,13 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
   </tr>
   <tr>
     <td><img src="docs/screenshots/settings.png" alt="The settings page: tabs at startup, theme, sorting, previews and updates (Osaka Jade theme)"></td>
-    <td colspan="2"></td>
+    <td><img src="docs/screenshots/gif-preview.webp" alt="An animated GIF (a Mandelbrot zoom) playing in the preview pane, sharp sixel in foot (Ristretto theme)"></td>
+    <td><img src="docs/screenshots/select-text.png" alt="The Y view: a syntax-highlighted Go file full screen, ready to drag-select and copy with the terminal (Hackerman theme)"></td>
   </tr>
   <tr>
     <td align="center">Settings (<code>S</code>) · Osaka Jade</td>
-    <td colspan="2"></td>
+    <td align="center">Animated GIFs, played in the preview · Ristretto</td>
+    <td align="center"><code>Y</code>: drag to select preview text, copy with your terminal · Hackerman</td>
   </tr>
 </table>
 
