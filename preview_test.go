@@ -86,3 +86,24 @@ func TestJSONIsPrettyPrinted(t *testing.T) {
 		t.Errorf("expected indented json, got %q", p.lines)
 	}
 }
+
+func TestVideoInfo(t *testing.T) {
+	fakeTool(t, "ffprobe", "printf 'codec_name=h264\\nwidth=1920\\nheight=1080\\nduration=4000.5\\n'\n")
+	fakeTool(t, "ffmpegthumbnailer", "exit 1\n")
+	dir := t.TempDir()
+	mkfile(t, filepath.Join(dir, "clip.mp4"), "not really a video")
+	ents, _ := readDir(dir, true)
+	pv := buildPreview(dir, ents[0], previewOpts{width: 60, rows: 20})
+	if want := "1920×1080 · 1:06:40 · h264 · 18 B"; pv.meta != want {
+		t.Errorf("meta %q, want %q", pv.meta, want)
+	}
+	text := strings.Join(pv.lines, "\n")
+	for _, s := range []string{"Length", "1:06:40", "Codec", "h264", "cannot preview"} {
+		if !strings.Contains(text, s) {
+			t.Errorf("no thumbnail: lines lack %q:\n%s", s, text)
+		}
+	}
+	if clock(65) != "1:05" {
+		t.Errorf("clock(65) = %s", clock(65))
+	}
+}

@@ -38,7 +38,7 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
 
 - **Three panes** — parent, current folder, and a preview (yazi-style). `shift+←/→` resizes the preview, `p` hides it.
 - **A preview that understands your files** — real inline images (sixel in foot/wezterm/mlterm, kitty graphics in
-  kitty/ghostty, half-block fallback anywhere else), animated GIFs, PDF first pages, video thumbnails, syntax-highlighted code
+  kitty/ghostty, half-block fallback anywhere else), animated GIFs, PDF first pages, video thumbnails with length, resolution and codec, syntax-highlighted code
   in your Omarchy colors, rendered markdown (`m` shows the source), pretty-printed JSON, archive contents, audio tags, folder contents.
 - **Word-wrapped preview** — long lines wrap at word boundaries; `w` toggles truncation.
 - **Copy text from the preview** — `Y` shows the preview's text full screen with the mouse released, so

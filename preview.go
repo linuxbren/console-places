@@ -157,13 +157,17 @@ func dirPreview(p preview, path string, o previewOpts) preview {
 
 func imagePreview(p preview, path string, e entry, kind previewKind, o previewOpts) preview {
 	p.meta = humanSize(e.size)
+	var info []string
+	if kind == kindVideo {
+		p.meta, info = videoInfo(path, e)
+	}
 	img, w, h, err := loadImage(path, kind)
 	if err != nil || img == nil {
 		msg := "cannot preview"
 		if err != nil {
 			msg += ": " + errText(err)
 		}
-		p.lines = []string{"  " + msg}
+		p.lines = fitLines(append(info, "", "  "+msg), o, previewMaxLines)
 		return p
 	}
 	if kind == kindImage && w > 0 {
@@ -183,6 +187,58 @@ func imagePreview(p preview, path string, e entry, kind previewKind, o previewOp
 	return p
 }
 
+// videoInfo describes a video for the pane header ("1920×1080 · 2:34 · h264
+// · 12 MiB") and, for when there is no thumbnail, as lines. Without ffprobe
+// it is just the size.
+func videoInfo(path string, e entry) (string, []string) {
+	size := humanSize(e.size)
+	out, err := run("ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+		"stream=width,height,codec_name:format=duration", "-of", "default=noprint_wrappers=1", path)
+	if err != nil {
+		return size, nil
+	}
+	var w, h int
+	var dur, codec string
+	for _, l := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		k, v, _ := strings.Cut(l, "=")
+		switch k {
+		case "width":
+			fmt.Sscanf(v, "%d", &w)
+		case "height":
+			fmt.Sscanf(v, "%d", &h)
+		case "codec_name":
+			codec = sanitize(v)
+		case "duration":
+			var secs float64
+			if _, err := fmt.Sscanf(v, "%f", &secs); err == nil {
+				dur = clock(secs)
+			}
+		}
+	}
+	var parts, lines []string
+	add := func(label, v string) {
+		if v != "" {
+			parts = append(parts, v)
+			lines = append(lines, fmt.Sprintf("  %-10s %s", label, v))
+		}
+	}
+	if w > 0 && h > 0 {
+		add("Size", fmt.Sprintf("%d×%d", w, h))
+	}
+	add("Length", dur)
+	add("Codec", codec)
+	return strings.Join(append(parts, size), " · "), lines
+}
+
+// clock formats seconds as m:ss, or h:mm:ss from an hour up.
+func clock(secs float64) string {
+	s := int(secs)
+	if s >= 3600 {
+		return fmt.Sprintf("%d:%02d:%02d", s/3600, s/60%60, s%60)
+	}
+	return fmt.Sprintf("%d:%02d", s/60, s%60)
+}
+
 func audioPreview(p preview, path string, e entry, o previewOpts) preview {
 	p.meta = humanSize(e.size)
 	out, err := run("ffprobe", "-v", "error", "-show_entries", "format=duration,bit_rate:format_tags", "-of", "default=noprint_wrappers=1", path)
@@ -200,7 +256,7 @@ func audioPreview(p preview, path string, e entry, o previewOpts) preview {
 		case "duration":
 			var secs float64
 			fmt.Sscanf(v, "%f", &secs)
-			v = fmt.Sprintf("%d:%02d", int(secs)/60, int(secs)%60)
+			v = clock(secs)
 		case "bit_rate":
 			var bps int
 			fmt.Sscanf(v, "%d", &bps)
