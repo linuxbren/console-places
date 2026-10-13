@@ -69,9 +69,10 @@ type model struct {
 	trashMeta map[string]trashMeta // origins and dates, in the trash view
 	tab       int
 	undo      []undoItem
-	conn      *connection // the network location being connected to
-	rm        *rootMount  // a system mount being set up
-	scan      *placeScan  // drives and network locations, for places in the list
+	conn      *connection  // the network location being connected to
+	rm        *rootMount   // a system mount being set up
+	vid       *videoPlayer // the video playing in the preview, if any
+	scan      *placeScan   // drives and network locations, for places in the list
 	scannedAt time.Time
 	scanning  bool
 
@@ -420,7 +421,7 @@ func (m model) previewOpts() previewOpts {
 		line = m.jump.line
 	}
 	return previewOpts{line: line, width: inner[2], rows: rows, wrap: m.cfg.Wrap, hidden: m.cfg.ShowHidden, mdSource: m.cfg.MarkdownSource,
-		proto: m.proto, cellW: m.cellW, cellH: m.cellH, bg: m.theme.Bg, syn: m.syn}
+		proto: m.proto, cellW: m.cellW, cellH: m.cellH, bg: m.theme.Bg, syn: m.syn, videoPlay: m.cfg.VideoPlay}
 }
 
 // refreshPreview makes the preview pane match the selection. Cheap kinds build
@@ -556,6 +557,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case animTickMsg:
 		cmd = m.stepAnim(msg)
+	case videoFrameMsg:
+		cmd = m.onVideoFrame(msg)
+	case videoAutoMsg:
+		cmd = m.onVideoAuto(msg)
 	case connectMsg:
 		cmd = tea.Batch(m.onConnect(msg), m.rescanPlaces(true))
 	case firewallMsg:
@@ -650,7 +655,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.titleDir = m.cwd
 		cmd = tea.Batch(cmd, tea.SetWindowTitle(windowTitle(m.cwd)))
 	}
-	return m, tea.Batch(cmd, m.refreshPreview())
+	cmd = tea.Batch(cmd, m.refreshPreview(), m.syncVideo())
+	return m, cmd
 }
 
 func (m *model) finishOp(res opResult) {
@@ -1058,6 +1064,8 @@ func (m model) perform(act action) (model, tea.Cmd) {
 		m.clampPreviewScroll()
 	case actScrollUp:
 		m.pvScroll = max(0, m.pvScroll-1)
+	case actPlay:
+		return m, m.togglePlay()
 	}
 	return m, nil
 }
@@ -1187,6 +1195,9 @@ func (m model) quit() tea.Cmd {
 		}
 	}
 	m.leaveArchive()
+	if m.pv.video != nil {
+		m.pv.video.stop()
+	}
 	m.gfx.set(nil, "")
 	if m.cwdFile != "" {
 		_ = os.WriteFile(m.cwdFile, []byte(m.cwd), 0o600)

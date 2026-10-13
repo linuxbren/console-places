@@ -49,6 +49,9 @@ type animation struct {
 	done    bool // no more frames are coming
 	loops   int  // gif.GIF.LoopCount: 0 forever, -1 once, n: n extra times
 	stopped atomic.Bool
+	paused  atomic.Bool // alt+p: the tick chain ends; playing again starts a new one
+	gen     int         // the current tick chain (UI goroutine only)
+	loop    int         // restarts so far, for resuming
 }
 
 // frame returns frame i if it is encoded yet, and whether more may come.
@@ -67,10 +70,12 @@ type animTickMsg struct {
 	a    *animation
 	i    int // frame to show
 	loop int // restarts so far
+	gen  int
 }
 
 func animTick(a *animation, i, loop int, d time.Duration) tea.Cmd {
-	return tea.Tick(d, func(time.Time) tea.Msg { return animTickMsg{a, i, loop} })
+	gen := a.gen
+	return tea.Tick(d, func(time.Time) tea.Msg { return animTickMsg{a, i, loop, gen} })
 }
 
 // decodeGIF reads every frame of a GIF, refusing ones too big to animate.
@@ -142,36 +147,7 @@ func gifPreview(p preview, path string, e entry, o previewOpts) preview {
 	w, h := g.Config.Width, g.Config.Height
 	p.meta = fmt.Sprintf("%d×%d · %d frames · %s", w, h, len(g.Image), humanSize(e.size))
 
-	cols, rows := o.width, o.rows
-	if o.proto != protoBlocks {
-		pw, ph := fitSize(w, h, cols*o.cellW, rows*o.cellH)
-		if pw*ph > animGfxMaxPx {
-			s := math.Sqrt(float64(animGfxMaxPx) / float64(pw*ph))
-			cols, rows = max(1, int(float64(cols)*s)), max(1, int(float64(rows)*s))
-		}
-	}
-	encode := func(img image.Image) (animFrame, int, error) {
-		switch o.proto {
-		case protoSixel:
-			s, err := renderSixel(img, cols, rows, o.cellW, o.cellH, o.bg)
-			if err != nil {
-				return animFrame{}, 0, err
-			}
-			return animFrame{img: s}, len(s.seq), nil
-		case protoKitty:
-			s, err := renderKitty(img, cols, rows, o.cellW, o.cellH, o.bg)
-			if err != nil {
-				return animFrame{}, 0, err
-			}
-			return animFrame{img: s}, len(s.seq), nil
-		}
-		lines := renderBlocks(img, cols, rows, o.cellW, o.cellH, o.bg)
-		n := 0
-		for _, l := range lines {
-			n += len(l)
-		}
-		return animFrame{lines: lines}, n, nil
-	}
+	encode, _, _ := frameEncoder(o, w, h)
 
 	a := &animation{loops: g.LoopCount}
 	first := make(chan error, 1)
@@ -212,6 +188,49 @@ func gifPreview(p preview, path string, e entry, o previewOpts) preview {
 	return p
 }
 
+// frameEncoder encodes moving pictures (GIF frames, video) for the image
+// protocol in use: sixel and kitty send the whole picture every frame, so
+// those are kept to animGfxMaxPx. It returns the encoder and the picture's
+// size in pixels, which a video is decoded at.
+func frameEncoder(o previewOpts, srcW, srcH int) (encode func(image.Image) (animFrame, int, error), pw, ph int) {
+	cols, rows := o.width, o.rows
+	if o.proto == protoBlocks {
+		// Half the pane's pixel size: renderBlocks fits it to the cells
+		// (upscaling at most maxUpscale), and it's cheap to decode and scale.
+		pw, ph = fitSize(srcW, srcH, cols*max(1, o.cellW)/2, rows*max(1, o.cellH)/2)
+	} else {
+		pw, ph = fitSize(srcW, srcH, cols*o.cellW, rows*o.cellH)
+		if pw*ph > animGfxMaxPx {
+			s := math.Sqrt(float64(animGfxMaxPx) / float64(pw*ph))
+			cols, rows = max(1, int(float64(cols)*s)), max(1, int(float64(rows)*s))
+			pw, ph = fitSize(srcW, srcH, cols*o.cellW, rows*o.cellH)
+		}
+	}
+	encode = func(img image.Image) (animFrame, int, error) {
+		switch o.proto {
+		case protoSixel:
+			s, err := renderSixel(img, cols, rows, o.cellW, o.cellH, o.bg)
+			if err != nil {
+				return animFrame{}, 0, err
+			}
+			return animFrame{img: s}, len(s.seq), nil
+		case protoKitty:
+			s, err := renderKitty(img, cols, rows, o.cellW, o.cellH, o.bg)
+			if err != nil {
+				return animFrame{}, 0, err
+			}
+			return animFrame{img: s}, len(s.seq), nil
+		}
+		lines := renderBlocks(img, cols, rows, o.cellW, o.cellH, o.bg)
+		n := 0
+		for _, l := range lines {
+			n += len(l)
+		}
+		return animFrame{lines: lines}, n, nil
+	}
+	return encode, pw, ph
+}
+
 // stepAnim shows frame msg.i of the playing GIF and schedules the next one.
 // A tick for an animation that is no longer on screen ends it.
 func (m *model) stepAnim(msg animTickMsg) tea.Cmd {
@@ -220,6 +239,10 @@ func (m *model) stepAnim(msg animTickMsg) tea.Cmd {
 		a.stop()
 		return nil
 	}
+	if msg.gen != a.gen || a.paused.Load() {
+		return nil // paused, or an older chain
+	}
+	a.loop = msg.loop
 	if m.modal != nil || m.pickerOpen {
 		return animTick(a, msg.i, msg.loop, animPaused)
 	}

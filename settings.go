@@ -147,6 +147,22 @@ func settingsList() []setting {
 				m.reload(m.curName())
 				return m.rescanPlaces(true)
 			}},
+		{label: "Video previews", choices: []string{"play after a moment", "play with alt+p", "still frame"},
+			current: func(m model) int {
+				switch m.cfg.VideoPlay {
+				case videoPlayKey:
+					return 1
+				case videoPlayOff:
+					return 2
+				}
+				return 0
+			},
+			apply: func(m *model, i int) tea.Cmd {
+				m.cfg.VideoPlay = []string{videoPlayAuto, videoPlayKey, videoPlayOff}[i]
+				m.cfg.save()
+				m.pvKey = ""
+				return nil
+			}},
 		{label: "Updates", choices: []string{"install automatically", "notify only", "off"},
 			current: func(m model) int {
 				switch m.cfg.Updates {
