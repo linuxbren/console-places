@@ -71,6 +71,9 @@ type model struct {
 	undo      []undoItem
 	conn      *connection // the network location being connected to
 	rm        *rootMount  // a system mount being set up
+	scan      *placeScan  // drives and network locations, for places in the list
+	scannedAt time.Time
+	scanning  bool
 
 	hist []string
 	hi   int
@@ -167,6 +170,9 @@ func (m *model) setRenderer(t tideui.Theme) {
 
 func (m model) Init() tea.Cmd {
 	cmds := []tea.Cmd{writeTerm(setTerminalBg(m.theme)), tick()}
+	if m.cfg.PlacesInList == placesListAll {
+		cmds = append(cmds, scanPlacesCmd())
+	}
 	if m.updateDue(time.Now()) {
 		cmds = append(cmds, checkUpdate(false))
 	}
@@ -268,7 +274,7 @@ func (m *model) reload(focus string) {
 	}
 	m.all = ents
 	sortEntries(m.all, m.cfg.Sort, m.cfg.SortDesc)
-	if m.showsTrashLink() {
+	if m.showsTrashLink() || m.listsPlaces() {
 		m.trashN = trashCount()
 	}
 	if m.inTrash() {
@@ -318,19 +324,28 @@ func (m *model) applyView(focus string) {
 			m.entries = append(m.entries, e)
 		}
 	}
-	m.entries = append(m.entries, m.trashRows()...) // pinned below everything, whatever the sort
+	m.entries = append(m.entries, m.tailRows(len(m.entries))...) // pinned below everything, whatever the sort
 	m.cursor = max(0, min(m.cursor, len(m.entries)-1))
 	for i, e := range m.entries {
-		if focus != "" && e.name == focus && e.kind != kindSeparator {
+		if focus != "" && e.name == focus && e.standable() {
 			m.cursor = i
 			break
 		}
 	}
-	if m.cursor < len(m.entries) && m.entries[m.cursor].kind == kindSeparator {
-		m.cursor-- // never rest on the separator (it always has a row above it)
-	}
+	m.settle()
 	m.fixOffset()
 	m.pvKey = ""
+}
+
+// settle moves the cursor off a separator: up, or down when there's
+// nothing to stand on above.
+func (m *model) settle() {
+	for m.cursor > 0 && m.cursor < len(m.entries) && !m.entries[m.cursor].standable() {
+		m.cursor--
+	}
+	for m.cursor < len(m.entries)-1 && !m.entries[m.cursor].standable() {
+		m.cursor++
+	}
 }
 
 func (m *model) setMsg(text string, isErr bool) { m.msg, m.msgErr = text, isErr }
@@ -351,11 +366,15 @@ func (m *model) move(delta int) {
 		return
 	}
 	m.cursor = max(0, min(len(m.entries)-1, m.cursor+delta))
-	if m.entries[m.cursor].kind == kindSeparator { // not a row you can stand on
-		if delta < 0 || m.cursor == len(m.entries)-1 {
-			m.cursor = max(0, m.cursor-1)
+	step := 1 // past separators, the way it was going
+	if delta < 0 {
+		step = -1
+	}
+	for n := 0; n < 2*len(m.entries) && !m.entries[m.cursor].standable(); n++ {
+		if n := m.cursor + step; n >= 0 && n < len(m.entries) {
+			m.cursor = n
 		} else {
-			m.cursor++
+			step = -step
 		}
 	}
 	m.fixOffset()
@@ -422,6 +441,13 @@ func (m *model) refreshPreview() tea.Cmd {
 				m.pv.meta, m.pv.lines = "empty", []string{"  (empty)"}
 			}
 			m.pvKey, m.pvPath, m.pvScroll = "trash-link", "", 0
+		}
+		return nil
+	}
+	if ok && e.kind == kindPlace {
+		if key := "place|" + e.name + "|" + e.info(); m.pvKey != key {
+			m.pv = m.placePreview(*e.pl)
+			m.pvKey, m.pvPath, m.pvScroll = key, "", 0
 		}
 		return nil
 	}
@@ -531,18 +557,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case animTickMsg:
 		cmd = m.stepAnim(msg)
 	case connectMsg:
-		cmd = m.onConnect(msg)
+		cmd = tea.Batch(m.onConnect(msg), m.rescanPlaces(true))
 	case firewallMsg:
 		cmd = m.onFirewall(msg)
 	case installMsg:
 		m.onInstall(msg)
 	case rootDoneMsg:
 		m.onRootDone(msg)
+		cmd = m.rescanPlaces(true)
 	case discoverMsg:
 		m.onDiscover(msg)
 	case sharesMsg:
 		m.onShares(msg)
+	case placesScannedMsg:
+		m.onPlacesScanned(msg)
 	case placeMsg:
+		cmd = m.rescanPlaces(true)
 		if msg.cause != nil && m.offerInstall(msg.cause) {
 			break
 		}
@@ -593,7 +623,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.reload(m.curName())
 	case tickMsg:
-		cmd = tick()
+		cmd = tea.Batch(tick(), m.rescanPlaces(false))
 		if m.themeMode == themeOmarchy && omarchy.Signature() != m.sig {
 			m.applyTheme()
 			cmd = tea.Batch(cmd, writeTerm(setTerminalBg(m.theme)))
@@ -612,6 +642,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		default:
 			m, cmd = m.handleKey(msg)
 		}
+	}
+	if m.cfg.PlacesInList != placesListOff {
+		m.refreshPlaceRows() // bookmarks and servers change from places (b) too
 	}
 	if m.cwd != m.titleDir {
 		m.titleDir = m.cwd
@@ -678,7 +711,7 @@ func (m model) guard(act action) (model, tea.Cmd, bool) {
 		}
 	}
 	if cur, ok := m.current(); ok && cur.virtual() && onTheFile[act] && (len(m.selected) == 0 || currentOnly[act]) {
-		m.setMsg("Trash is a shortcut, not a file: enter opens it", false)
+		m.setMsg(cur.name+" is a shortcut, not a file: enter "+shortcutAction(cur), false)
 		return m, nil, true
 	}
 	if m.arc != nil && !allowedInArchive[act] {
@@ -754,6 +787,8 @@ func (m model) perform(act action) (model, tea.Cmd) {
 		switch {
 		case cur.kind == kindTrashLink:
 			m.openTrash()
+		case cur.kind == kindPlace:
+			return m, m.openPlace(*cur.pl)
 		case m.arc != nil && cur.isDir:
 			m.archiveInto(cur.name)
 		case m.arc != nil:
@@ -810,7 +845,14 @@ func (m model) perform(act action) (model, tea.Cmd) {
 	case actPlaces:
 		m.openPlaces()
 	case actBookmark:
+		if hasCur && cur.kind == kindPlace && cur.pl.bookmark {
+			m.removeBookmark(cur.pl.path)
+			m.setMsg("removed bookmark "+tildePath(cur.pl.path), false)
+			m.refreshPlaceRows()
+			break
+		}
 		m.toggleBookmark()
+		m.refreshPlaceRows()
 	case actSelect:
 		if hasCur {
 			if m.selected[cur.name] {
@@ -1119,7 +1161,7 @@ func (m model) handleMouse(msg tea.MouseMsg) (model, tea.Cmd) {
 			if i >= len(m.entries) {
 				break
 			}
-			if m.entries[i].kind == kindSeparator {
+			if !m.entries[i].standable() {
 				break
 			}
 			double := i == m.lastClickRow && time.Since(m.lastClick) < doubleClick

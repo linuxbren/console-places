@@ -57,7 +57,7 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
   switch; each tab keeps its own folder, selection and history. Tabs are reopened next time, with the
   folder you start in as the active one (or only when no folder is given, or never — see settings).
 - **Settings page** — `S` lists every preference (tabs at startup, theme, hidden files, sort, preview
-  pane, word wrap, markdown, image previews, updates); `←`/`→` change one, and it's saved straight away.
+  pane, word wrap, markdown, image previews, places in the file list, updates); `←`/`→` change one, and it's saved straight away.
 - **Keeps itself up to date** — release binaries check for a new version once a day, install it after
   verifying its checksum, and ask before restarting (tabs come back), listing what's new since your
   version so you can jump straight in. `U` does it by hand; see
@@ -74,6 +74,10 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
   `alt+t` jumps there). The trash shows where each item came from and when it was deleted; `r` puts
   it back (as `name (2)` if something is there now), `D` deletes it forever, `E` empties the trash.
 - **Places: bookmarks, drives and network** — `b` is the sidebar, in sections like Nautilus':
+  - **Places in the file list** (opt-in) — Settings (`S`) → *Places in the file list* puts your
+    bookmarks (or bookmarks, drives and network) and the Trash below the files in every folder, so
+    moving down past the last file reaches them. `enter` opens, mounts or connects, `B` on a bookmark
+    removes it; `b` stays the full list with the other actions.
   - **Bookmarks** — `B` bookmarks the folder you're in (`B` again removes it); bookmarked folders
     show a `★`.
   - **Drives** — every drive and partition that isn't part of the running system, mounted or not,

@@ -20,7 +20,7 @@ func (m model) View() string {
 	m.syncGraphics(inner, rows)
 
 	parentTitle := tildePath(filepath.Dir(m.cwd))
-	files := len(m.entries) - len(m.trashRows())
+	files := len(m.entries) - len(virtualRows(m.entries))
 	hint := fmt.Sprintf("%d/%d", min(m.cursor+1, files), files)
 	if m.cfg.Sort != "name" || m.cfg.SortDesc {
 		arrow := "↑"
@@ -100,6 +100,13 @@ func (m model) statusLeft() string {
 	if ok && e.kind == kindTrashLink {
 		return "Trash · " + plural(m.trashN, "item") + " · enter opens it"
 	}
+	if ok && e.kind == kindPlace {
+		text := e.name + " · " + e.info() + " · enter " + placeAction(*e.pl)
+		if e.pl.bookmark {
+			text += " · B removes it"
+		}
+		return text + " · b for more"
+	}
 	if ok && m.inTrash() {
 		if tm, found := m.trashMeta[e.name]; found {
 			return "from " + tildePath(tm.origin) + " · deleted " + tm.deleted.Format("2006-01-02 15:04") + " · r restores"
@@ -142,7 +149,23 @@ func (m model) renderList(ents []entry, cursor, offset, width, rows int, main bo
 		e := ents[i]
 		switch e.kind {
 		case kindSeparator:
-			lines = append(lines, m.renderer.Styles.DetailMeta.Render(" "+strings.Repeat("─", max(1, width-2))))
+			rule := " " + strings.Repeat("─", max(1, width-2))
+			if e.name != "" && width > len(e.name)+6 { // a places section
+				rule = " ─ " + e.name + " " + strings.Repeat("─", max(1, width-len(e.name)-5))
+			}
+			lines = append(lines, m.renderer.Styles.DetailMeta.Render(rule))
+			continue
+		case kindNote:
+			lines = append(lines, "  "+e.name)
+			continue
+		case kindPlace:
+			p := e.pl
+			row := tideui.Row{Prefix: "  ", Text: placeIcon(*p) + " " + sanitize(e.name), Selected: i == cursor,
+				Muted: p.kind == placeServer || (p.kind == placeDrive && p.path == "")}
+			if width >= 28 {
+				row.Suffix = placeSuffix(*p) + " "
+			}
+			lines = append(lines, m.renderer.RenderRow(row, width))
 			continue
 		case kindTrashLink:
 			text := trashIcon + " Trash · " + strconv.Itoa(m.trashN)

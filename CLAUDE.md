@@ -28,7 +28,8 @@ One `main` package, one file per concern:
 - `ops.go` / `fsops.go` file operations; `jobs.go` background jobs with progress + cancel (paste,
   extract, compress); `archive.go` / `compress.go`; `trash.go` (freedesktop trash, pinned Trash row,
   new window); `tabs.go`; `places.go` (`b`: sections Places / Bookmarks / Drives /
-  Network; `B` toggles a bookmark); `clipboard.go` (Wayland ext-data-control owner, X11 xclip/xsel,
+  Network; `B` toggles a bookmark); `listplaces.go` (opt-in setting: places rows below every folder's
+  files, the Trash row generalised; drives/network from a background scan, never read while drawing); `clipboard.go` (Wayland ext-data-control owner, X11 xclip/xsel,
   wl-copy fallback); `config.go` (`~/.config/tidefiles/config.json`); `internal/omarchy` theme reading.
 - Drives and network (all listed in places): `drives.go` lsblk → drives that aren't the running
   system, mounted/unlocked/unmounted via `udisksctl` (no tty, so polkit asks through the desktop

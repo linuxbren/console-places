@@ -16,6 +16,8 @@ type config struct {
 	Bookmarks  []string `json:"bookmarks,omitempty"`
 	Servers    []string `json:"servers,omitempty"` // network locations connected to, most recent first
 
+	PlacesInList string `json:"places_in_list,omitempty"` // "" off, "bookmarks" or "all": rows below every folder's files
+
 	PreviewRatio float64 `json:"preview_ratio,omitempty"` // share of the width given to the preview
 	HidePreview  bool    `json:"hide_preview,omitempty"`
 
