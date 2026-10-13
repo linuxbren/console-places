@@ -94,8 +94,17 @@ func (m model) commands() []command {
 		{title: "Half page up", act: actHalfUp, group: "Navigate"},
 		{title: "Half page down", act: actHalfDown, group: "Navigate"},
 		{title: "Go to a path…", synonyms: "type path location cd jump", act: actGoto, group: "Navigate"},
-		{title: "Places and bookmarks", synonyms: "sidebar home downloads drives mounts", act: actPlaces, group: "Navigate"},
-		{title: "Bookmark this folder", synonyms: "favourite favorite pin", act: actBookmark, group: "Navigate"},
+		{title: "Places, drives and network", synonyms: "sidebar bookmarks home downloads drives mounts usb disk network shares", act: actPlaces, group: "Navigate"},
+		{title: onOff(m.isBookmarked(m.cwd), "Remove bookmark", "Bookmark this folder"), synonyms: "favourite favorite pin star starred", act: actBookmark, group: "Navigate"},
+		{id: "connect", title: "Connect to server…", synonyms: "network share smb samba windows mac sftp ssh nfs ftp webdav mount remote",
+			run: func(mm *model) tea.Cmd { mm.openConnect("", ""); return nil }, group: "Navigate"},
+		{id: "root-mount", title: "System mount (root)…", synonyms: "mount.cifs cifs nfs kernel fstab sudo pkexec share",
+			run: func(mm *model) tea.Cmd {
+				mm.openInput("rootaddr", "system mount (root)", "Share to mount as root: smb://host/share or nfs://host/export", "", nil)
+				return nil
+			}, group: "Navigate"},
+		{id: "browse-network", title: "Browse network", synonyms: "find computers shares windows mac samba nas discover neighborhood",
+			run: func(mm *model) tea.Cmd { return mm.openBrowse() }, group: "Navigate"},
 		{title: "Home folder", synonyms: "~", act: actHome, group: "Navigate"},
 		{title: "Trash", synonyms: "bin recycle deleted wastebasket", act: actGoTrash, group: "Navigate"},
 
@@ -319,7 +328,8 @@ func (m model) handlePaletteKey(md *modal, msg tea.KeyMsg) (model, tea.Cmd) {
 		m.modal = nil
 		m.noteRecent(cm.id)
 		if cm.run != nil {
-			return m, cm.run(&m)
+			cmd := cm.run(&m) // before m is returned: run may change it
+			return m, cmd
 		}
 		if mm, cmd, stop := m.guard(cm.act); stop {
 			return mm, cmd

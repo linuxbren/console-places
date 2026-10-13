@@ -53,15 +53,16 @@ nfpms:
         dst: /usr/share/licenses/tidefiles/LICENSE
       - src: contrib/omarchy-super-c.lua
         dst: /usr/share/tidefiles/omarchy-super-c.lua
-    # Optional helpers (clipboard, archives, faster search, previews), under
+    # Optional helpers (clipboard, archives, faster search, previews, drives and
+    # network places), under
     # each distro's own package names.
     overrides:
       deb:
         recommends: [wl-clipboard, libarchive-tools, ripgrep]
-        suggests: [xclip, imagemagick, poppler-utils, ffmpegthumbnailer, ffmpeg, xdg-utils]
+        suggests: [xclip, imagemagick, poppler-utils, ffmpegthumbnailer, ffmpeg, xdg-utils, udisks2, gvfs, gvfs-fuse, gvfs-backends, avahi-utils, smbclient, cifs-utils, nfs-common]
       rpm:
         recommends: [wl-clipboard, bsdtar, ripgrep]
-        suggests: [xclip, ImageMagick, poppler-utils, ffmpegthumbnailer, ffmpeg, xdg-utils]
+        suggests: [xclip, ImageMagick, poppler-utils, ffmpegthumbnailer, ffmpeg, xdg-utils, udisks2, gvfs, gvfs-fuse, gvfs-smb, gvfs-nfs, avahi-tools, samba-client, cifs-utils, nfs-utils]
       apk:
         recommends: [wl-clipboard, libarchive-tools, ripgrep]
 
@@ -84,6 +85,14 @@ aurs:
       - "poppler: PDF previews"
       - "ffmpegthumbnailer: video previews"
       - "xdg-terminal-exec: terminal here / new window"
+      - "udisks2: mount drives"
+      - "gvfs: connect to servers (network places)"
+      - "gvfs-smb: Windows, Mac and Samba shares"
+      - "gvfs-nfs: NFS shares"
+      - "avahi: find computers on the network"
+      - "smbclient: list the shares on a server"
+      - "cifs-utils: system (root) SMB mounts"
+      - "nfs-utils: system (root) NFS mounts"
     git_url: "ssh://aur@aur.archlinux.org/tidefiles-bin.git"
     private_key: "{{ .Env.AUR_KEY }}"
     skip_upload: true

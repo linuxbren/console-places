@@ -73,8 +73,33 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
 - **A real Trash** — a `Trash · 12` row is pinned at the bottom of your home folder (and in places;
   `alt+t` jumps there). The trash shows where each item came from and when it was deleted; `r` puts
   it back (as `name (2)` if something is there now), `D` deletes it forever, `E` empties the trash.
+- **Places: bookmarks, drives and network** — `b` is the sidebar, in sections like Nautilus':
+  - **Bookmarks** — `B` bookmarks the folder you're in (`B` again removes it); bookmarked folders
+    show a `★`.
+  - **Drives** — every drive and partition that isn't part of the running system, mounted or not,
+    with free space. `enter` mounts and opens one (an encrypted one asks for its passphrase); `u`
+    unmounts it, and a USB drive is then powered off so it's safe to unplug. Uses udisks: no root,
+    and your desktop asks for a password where one is needed.
+  - **Network** — `c` connects to a server: `smb://` (Windows, Mac, Samba), `sftp://` (anything with
+    ssh), `nfs://`, `ftp://`, `dav://`; `\\pc\share` and `user@host:/path` work too. Passwords and
+    other questions are asked inside tidefiles; `ctrl+s` at the password saves it in your keyring,
+    where Nautilus finds it too. **Browse network…** finds computers that share files (mDNS,
+    WS-Discovery, NetBIOS) and lists a server's shares. Servers you connect to stay listed; `u`
+    disconnects, `d` forgets one. Connections go through gvfs, as in Nautilus, so they're
+    shared with it.
+  - **System mounts (root)** — for power users, `ctrl+r` in Connect mounts an SMB or NFS share with
+    the kernel's own client (`mount.cifs` / `mount.nfs`) at a folder like `/mnt/photos`, via pkexec
+    or sudo: faster, and visible to every program. The password goes in a credentials file that's
+    deleted right after mounting.
 - **New window** — `ctrl+n` opens tidefiles in this folder in a new terminal window
   (`xdg-terminal-exec`, the way Omarchy launches terminals, or `$TERMINAL`).
+
+Drives use `udisks2` (`udisksctl`) and `lsblk`. Network locations need `gvfs` plus its backends
+(`gvfs-smb`, `gvfs-nfs`; `gvfs-backends` on Debian/Ubuntu); browsing uses `avahi` and `smbclient`;
+system mounts need `cifs-utils` or `nfs-utils`. When one is missing, tidefiles says what it's for
+and offers to install it with your package manager (as root, after you say yes). If your firewall
+(ufw) drops the answers Windows PCs send while browsing, **Browse network…** explains and offers
+(`f`) to allow just those: UDP from your own network, from the discovery ports 3702 and 137.
 
 Image previews use `imagemagick` (jpeg/svg/heic/…), `poppler` (PDF), `ffmpegthumbnailer` (video),
 `libarchive` (archives) and `ffmpeg` (audio tags) when installed. Set `TIDEFILES_IMAGES=blocks|sixel|kitty`
@@ -153,13 +178,13 @@ tidefiles --cwd-file /tmp/tidefiles.cwd   # write final dir on quit, for a cd-on
 
 From a checkout, `go run . [dir]` works the same way.
 
-Settings (theme, hidden files, wrap, sort, bookmarks) are remembered in
+Settings (theme, hidden files, wrap, sort, bookmarks, servers you connected to) are remembered in
 `~/.config/tidefiles/config.json`.
 
 ## Keys
 
 Arrow keys first; vim keys work too. Press `?` for every action: type to find one, `enter` runs it.
 `space` select · `SUPER+C`/`X`/`V` copy/cut/paste (plain `c`/`x`/`v` work too) · `d` trash · `ctrl+z` undo · `F2` rename ·
-`n`/`N` new file/folder · `/` filter · `f` find · `F` search inside files · `X` extract · `Z` compress · `ctrl+t`/`ctrl+w` tabs · `ctrl+n` new window · `alt+t` trash · `s` sort · `S` settings · `b` places · `i` properties · `P` permissions · `o` open with · `T` theme. Drag over the preview to copy text.
+`n`/`N` new file/folder · `/` filter · `f` find · `F` search inside files · `X` extract · `Z` compress · `ctrl+t`/`ctrl+w` tabs · `ctrl+n` new window · `alt+t` trash · `s` sort · `S` settings · `b` places, drives, network · `B` bookmark · `i` properties · `P` permissions · `o` open with · `T` theme. Drag over the preview to copy text.
 
 `SUPER+C` needs a one-time Hyprland snippet on Omarchy — see [Install](#install).

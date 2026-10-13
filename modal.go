@@ -47,9 +47,12 @@ type modal struct {
 	targets []string // absolute paths the modal acts on
 	prev    string   // filter value to restore on esc
 	perm    *permEdit
+	secret  bool // the input is a password: shown as dots
+	guest   bool // a connection prompt that can switch to guest (anonymous)
 	find    *findState
 	grep    *grepState
 	pal     *paletteState
+	places  []place // the places menu's rows, beside items
 }
 
 // ---- text input --------------------------------------------------------
@@ -146,23 +149,6 @@ func (m *model) openInput(purpose, title, label, initial string, targets []strin
 
 func (m *model) openConfirm(purpose, title string, lines []string, targets []string) {
 	m.modal = &modal{kind: mConfirm, purpose: purpose, title: title, lines: lines, targets: targets}
-}
-
-func (m *model) openPlaces() {
-	items := []menuItem{}
-	for _, p := range m.places() {
-		suffix := tildePath(p.path)
-		if p.path == trashFilesDir() {
-			suffix = ""
-		}
-		items = append(items, menuItem{label: p.name, suffix: suffix, value: p.path, muted: p.bookmark})
-	}
-	m.modal = &modal{kind: mMenu, purpose: "places", title: "places", items: items}
-	for i, it := range items {
-		if it.value == m.cwd {
-			m.modal.sel = i
-		}
-	}
 }
 
 func (m *model) openProps() {
@@ -292,8 +278,17 @@ func (m model) handleModalKey(msg tea.KeyMsg) (model, tea.Cmd) {
 	case mHelp:
 		return m.handlePaletteKey(md, msg)
 	case mInfo:
+		if md.purpose == "browsed" && m.browseOffer(key) {
+			return m, nil
+		}
 		switch key {
 		case "?", "esc", "q", "enter", "i":
+			if md.purpose == "connecting" {
+				if key != "esc" && key != "q" {
+					break // still connecting: only esc cancels
+				}
+				m.cancelConnect()
+			}
 			m.modal = nil
 		case "P": // same key as in the file list; p is preview there
 			if md.purpose == "props" {
@@ -324,7 +319,30 @@ func (m model) handleModalKey(msg tea.KeyMsg) (model, tea.Cmd) {
 		return m.handleSettingsKey(md, key)
 	case mInput:
 		switch key {
+		case "ctrl+s":
+			if md.purpose == "connectp" && md.secret && m.conn != nil && keyringSchemes[m.conn.scheme()] {
+				m.conn.remember = !m.conn.remember
+			}
+		case "ctrl+r":
+			if md.purpose == "connect" {
+				m.modal = nil
+				m.startRootMount(md.in.value())
+				return m, nil
+			}
+		case "ctrl+g":
+			if md.guest && m.conn != nil {
+				uri := m.conn.uri
+				m.conn.cancel()
+				m.conn = nil
+				return m, m.connect(uri, true)
+			}
 		case "esc":
+			if md.purpose == "connectp" {
+				m.cancelConnect()
+			}
+			if strings.HasPrefix(md.purpose, "root") {
+				m.rm = nil
+			}
 			if md.purpose == "filter" {
 				m.filter = md.prev
 				m.applyView("")
@@ -345,8 +363,19 @@ func (m model) handleModalKey(msg tea.KeyMsg) (model, tea.Cmd) {
 }
 
 func (m model) handleMenuKey(md *modal, key string) (model, tea.Cmd) {
+	if md.purpose == "places" {
+		if mm, cmd, ok := m.handlePlacesKey(md, key); ok {
+			return mm, cmd
+		}
+	}
+	if md.purpose == "browse" && m.browseOffer(key) {
+		return m, nil
+	}
 	switch key {
 	case "esc", "q":
+		if md.purpose == "connectq" {
+			m.cancelConnect()
+		}
 		m.modal = nil
 	case "up", "k":
 		md.sel = max(0, md.sel-1)
@@ -356,12 +385,6 @@ func (m model) handleMenuKey(md *modal, key string) (model, tea.Cmd) {
 		md.sel = 0
 	case "end", "G":
 		md.sel = len(md.items) - 1
-	case "d", "delete":
-		if md.purpose == "places" && md.sel < len(md.items) {
-			m.removeBookmark(md.items[md.sel].value)
-			m.openPlaces()
-			m.modal.sel = min(md.sel, len(m.modal.items)-1)
-		}
 	case "enter", "right", "l":
 		if md.sel < 0 || md.sel >= len(md.items) {
 			m.modal = nil
@@ -369,9 +392,11 @@ func (m model) handleMenuKey(md *modal, key string) (model, tea.Cmd) {
 		}
 		it := md.items[md.sel]
 		m.modal = nil
-		if md.purpose == "places" {
-			m.chdir(it.value, "")
-			return m, nil
+		if md.purpose == "connectq" {
+			return m, m.answerConnect(it.value, false)
+		}
+		if md.purpose == "browse" {
+			return m, m.pickService(it.value)
 		}
 		return m, launchApp(it.value, md.targets[0])
 	}
@@ -381,6 +406,22 @@ func (m model) handleMenuKey(md *modal, key string) (model, tea.Cmd) {
 func (m model) acceptInput(md *modal) (model, tea.Cmd) {
 	val := strings.TrimSpace(md.in.value())
 	switch md.purpose {
+	case "connect":
+		return m, m.connect(val, false)
+	case "rootaddr":
+		m.startRootMount(val)
+	case "rootmp", "rootuser":
+		return m, m.rootAnswer(md.purpose, val)
+	case "rootpass":
+		return m, m.rootAnswer(md.purpose, md.in.value())
+	case "unlock":
+		if len(md.places) == 1 {
+			p := md.places[0]
+			m.setMsg("unlocking "+p.name+"…", false)
+			return m, mountDrive(p.drive, md.in.value())
+		}
+	case "connectp": // as typed: passwords may start or end with a space
+		return m, m.answerConnect(md.in.value(), md.secret)
 	case "filter":
 		m.filter = val
 		m.applyView("")
@@ -437,6 +478,10 @@ func (m model) runConfirmed(md *modal) (model, tea.Cmd) {
 		}
 		m.restart = true
 		return m, m.quit()
+	case "allowfw":
+		return m, m.allowDiscovery(md.targets[0])
+	case "install":
+		return m, m.install(md.targets[0])
 	case "canceljob", "quitjob":
 		if m.job != nil {
 			m.job.cancel()
@@ -475,8 +520,26 @@ func (m model) modalOverlay() tideui.Overlay {
 		if md.label != "" {
 			body = append(body, md.label)
 		}
-		body = append(body, r.RenderSoftRow(tideui.SoftRow{Text: md.in.view(), Selected: true}, inner), "",
-			hints(tideui.SoftHint{Key: "enter", Label: "confirm"}, tideui.SoftHint{Key: "esc", Label: "cancel"}))
+		text := md.in.view()
+		if md.secret {
+			text = strings.Repeat("•", md.in.pos) + "▏" + strings.Repeat("•", len(md.in.r)-md.in.pos)
+		}
+		h := []tideui.SoftHint{{Key: "enter", Label: "confirm"}, {Key: "esc", Label: "cancel"}}
+		if md.guest {
+			h = append(h, tideui.SoftHint{Key: "ctrl+g", Label: "connect as guest"})
+		}
+		if md.purpose == "connect" {
+			h = append(h, tideui.SoftHint{Key: "ctrl+r", Label: "system mount (root)"})
+		}
+		body = append(body, r.RenderSoftRow(tideui.SoftRow{Text: text, Selected: true}, inner))
+		if md.purpose == "connectp" && md.secret && m.conn != nil && keyringSchemes[m.conn.scheme()] {
+			box := "☐"
+			if m.conn.remember {
+				box = "☑"
+			}
+			body = append(body, box+" Remember the password in the keyring  (ctrl+s)")
+		}
+		body = append(body, "", hints(h...))
 	case mConfirm:
 		body = append(body, md.lines...)
 		body = append(body, "", hints(tideui.SoftHint{Key: "y", Label: "yes"}, tideui.SoftHint{Key: "n", Label: "no"}))
@@ -497,6 +560,14 @@ func (m model) modalOverlay() tideui.Overlay {
 	case mSettings:
 		body = append(body, m.settingsBody(md, inner)...)
 	case mMenu:
+		if md.purpose == "places" {
+			body = append(body, m.placesBody(md, inner)...)
+			break
+		}
+		body = append(body, md.lines...)
+		if len(md.lines) > 0 {
+			body = append(body, "")
+		}
 		rows := max(3, m.height-10)
 		first := max(0, min(md.sel-rows/2, len(md.items)-rows))
 		for i := first; i < min(len(md.items), first+rows); i++ {
@@ -504,8 +575,11 @@ func (m model) modalOverlay() tideui.Overlay {
 			body = append(body, r.RenderSoftRow(tideui.SoftRow{Text: it.label, Suffix: it.suffix, Selected: i == md.sel, Muted: it.muted}, inner))
 		}
 		h := []tideui.SoftHint{{Key: "enter", Label: "open"}, {Key: "esc", Label: "close"}}
-		if md.purpose == "places" {
-			h = append(h, tideui.SoftHint{Key: "d", Label: "remove bookmark"})
+		switch md.purpose {
+		case "connectq":
+			h[0].Label = "choose"
+		case "browse":
+			h[0].Label = "connect"
 		}
 		body = append(body, "", hints(h...))
 	case mHelp:

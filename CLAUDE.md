@@ -27,8 +27,22 @@ One `main` package, one file per concern:
   mouse, since terminals capture it per window); release copies the file's own text via `segments`.
 - `ops.go` / `fsops.go` file operations; `jobs.go` background jobs with progress + cancel (paste,
   extract, compress); `archive.go` / `compress.go`; `trash.go` (freedesktop trash, pinned Trash row,
-  new window); `tabs.go`; `places.go`; `clipboard.go` (Wayland ext-data-control owner, X11 xclip/xsel,
+  new window); `tabs.go`; `places.go` (`b`: sections Places / Bookmarks / Drives /
+  Network; `B` toggles a bookmark); `clipboard.go` (Wayland ext-data-control owner, X11 xclip/xsel,
   wl-copy fallback); `config.go` (`~/.config/tidefiles/config.json`); `internal/omarchy` theme reading.
+- Drives and network (all listed in places): `drives.go` lsblk → drives that aren't the running
+  system, mounted/unlocked/unmounted via `udisksctl` (no tty, so polkit asks through the desktop
+  agent). `network.go` connects with `gio mount` (gvfs, like Nautilus), relaying each prompt gio
+  flushes over a pipe ("…: ") into a modal; the `*connection` pointer is the generation id.
+  `keyring.go` saves a password (when ticked) to the Secret Service over D-Bus with gvfs' own
+  NetworkPassword attributes, since gio never saves; gvfs finds it next time. `discover.go` browses
+  via avahi-browse, a WS-Discovery probe and nmblookup (ufw drops WSD/NetBIOS replies; mDNS passes),
+  smbclient lists shares. `rootmount.go` opt-in kernel cifs/nfs mounts via pkexec/sudo with the
+  terminal handed over (`tea.ExecProcess`); the cifs password goes in a 0600 file deleted after.
+  `firewall.go` offers (with a yes) two ufw rules letting WSD/NetBIOS answers in from the LAN;
+  `install.go` turns a `missingError` into an offer to install the package (per package manager).
+  Root actions share `privileged()` + `runPrivileged` (pkexec/sudo, terminal handed over).
+  Tests stub every system lookup in `TestMain` (lsblk, gvfs, mounts, keyring, network, ufw, pm).
 - `update.go` daily release check + self-update (`U`; Settings → Updates). Only a release binary in a
   user-writable folder replaces itself (checksum-verified, `--version` sanity run, atomic rename,
   then a restart prompt that re-execs with `TIDEFILES_RESTARTED`); packages / Nix / `go install`

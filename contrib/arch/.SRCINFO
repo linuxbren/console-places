@@ -18,6 +18,14 @@ pkgbase = tidefiles
 	optdepends = ffmpeg: audio tags in previews
 	optdepends = xdg-utils: open files in their default app
 	optdepends = xdg-terminal-exec: open a terminal here
+	optdepends = udisks2: mount drives
+	optdepends = gvfs: connect to servers (network places)
+	optdepends = gvfs-smb: Windows, Mac and Samba shares
+	optdepends = gvfs-nfs: NFS shares
+	optdepends = avahi: find computers on the network
+	optdepends = smbclient: list the shares on a server
+	optdepends = cifs-utils: system (root) SMB mounts
+	optdepends = nfs-utils: system (root) NFS mounts
 	source = tidefiles-0.8.2.tar.gz::https://github.com/linuxbren/tidefiles/archive/v0.8.2.tar.gz
 	sha256sums = 041eba03aa635028c74e2fb2591cb0f354404bb7b702aea252e14ce0de610e7e
 

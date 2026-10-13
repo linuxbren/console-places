@@ -20,6 +20,14 @@ optdepends=(
   'ffmpeg: audio tags in previews'
   'xdg-utils: open files in their default app'
   'xdg-terminal-exec: open a terminal here'
+  'udisks2: mount drives'
+  'gvfs: connect to servers (network places)'
+  'gvfs-smb: Windows, Mac and Samba shares'
+  'gvfs-nfs: NFS shares'
+  'avahi: find computers on the network'
+  'smbclient: list the shares on a server'
+  'cifs-utils: system (root) SMB mounts'
+  'nfs-utils: system (root) NFS mounts'
 )
 source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
 sha256sums=('041eba03aa635028c74e2fb2591cb0f354404bb7b702aea252e14ce0de610e7e')

@@ -47,6 +47,7 @@ func TestPaletteGroupsAndFilter(t *testing.T) {
 	if got := strings.Join(heads, " "); got != "Navigate Files Search Archives Tabs View Settings App" {
 		t.Fatalf("groups: %q", got) // Archives: "Compress…" applies to the selected file
 	}
+	m.height = 60 // tall enough to show the Files group
 	body := strings.Join(m.paletteBody(m.modal, 60), "\n")
 	if !strings.Contains(body, "Move to trash") || !strings.Contains(body, "d  delete") {
 		t.Fatalf("rows should show the action and its key:\n%s", body)

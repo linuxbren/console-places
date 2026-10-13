@@ -19,7 +19,7 @@
           src = self;
           # Hash of the Go module dependencies: update when go.mod/go.sum change
           # (set it to pkgs.lib.fakeHash, run `nix build`, copy the hash it reports).
-          vendorHash = "sha256-3Rwtm8WYShUW4V2vmlq7VKFBk4uus0QfNk5dCWz+gYI=";
+          vendorHash = "sha256-CQylu8/dEq32l7gtsPyym9GjqQ2mvSGF03RhezCHKG8=";
           env.CGO_ENABLED = 0;
           ldflags = [ "-s" "-w" "-X main.version=v${version}" ];
           meta = {

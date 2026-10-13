@@ -132,6 +132,10 @@ func (m model) renderList(ents []entry, cursor, offset, width, rows int, main bo
 			}
 		}
 	}
+	starred := map[string]bool{}
+	for _, b := range m.cfg.Bookmarks {
+		starred[b] = true
+	}
 	end := min(len(ents), offset+rows)
 	lines := make([]string, 0, end-offset)
 	for i := offset; i < end; i++ {
@@ -160,6 +164,8 @@ func (m model) renderList(ents []entry, cursor, offset, width, rows int, main bo
 			row.Suffix = m.trashSuffix(e.name, max(16, width-ansi.StringWidth(name)-6)) + " "
 		case main && !e.isDir && width >= 28:
 			row.Suffix = humanSize(e.size) + " "
+		case main && e.isDir && m.arc == nil && starred[filepath.Join(m.cwd, e.name)]:
+			row.Suffix = "★ " // bookmarked
 		}
 		lines = append(lines, m.renderer.RenderRow(row, width))
 	}

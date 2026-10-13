@@ -69,6 +69,8 @@ type model struct {
 	trashMeta map[string]trashMeta // origins and dates, in the trash view
 	tab       int
 	undo      []undoItem
+	conn      *connection // the network location being connected to
+	rm        *rootMount  // a system mount being set up
 
 	hist []string
 	hi   int
@@ -528,6 +530,28 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case animTickMsg:
 		cmd = m.stepAnim(msg)
+	case connectMsg:
+		cmd = m.onConnect(msg)
+	case firewallMsg:
+		cmd = m.onFirewall(msg)
+	case installMsg:
+		m.onInstall(msg)
+	case rootDoneMsg:
+		m.onRootDone(msg)
+	case discoverMsg:
+		m.onDiscover(msg)
+	case sharesMsg:
+		m.onShares(msg)
+	case placeMsg:
+		if msg.cause != nil && m.offerInstall(msg.cause) {
+			break
+		}
+		if msg.open != "" {
+			m.chdir(msg.open, "")
+		} else if m.cwd != "" {
+			m.reload(m.curName())
+		}
+		m.setMsg(msg.text, msg.err)
 	case opDoneMsg:
 		m.finishOp(msg.res)
 	case findBatchMsg:
@@ -786,7 +810,7 @@ func (m model) perform(act action) (model, tea.Cmd) {
 	case actPlaces:
 		m.openPlaces()
 	case actBookmark:
-		m.addBookmark()
+		m.toggleBookmark()
 	case actSelect:
 		if hasCur {
 			if m.selected[cur.name] {

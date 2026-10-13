@@ -14,6 +14,7 @@ type config struct {
 	Sort       string   `json:"sort,omitempty"`
 	SortDesc   bool     `json:"sort_desc,omitempty"`
 	Bookmarks  []string `json:"bookmarks,omitempty"`
+	Servers    []string `json:"servers,omitempty"` // network locations connected to, most recent first
 
 	PreviewRatio float64 `json:"preview_ratio,omitempty"` // share of the width given to the preview
 	HidePreview  bool    `json:"hide_preview,omitempty"`

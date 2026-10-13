@@ -8,57 +8,253 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/allisonhere/tideui"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+// Places (b) is tidefiles' sidebar, in Nautilus' sections: the usual
+// folders and the Trash, bookmarks, drives (mounted or not) and network
+// locations (connected, saved, or a new one).
+
+type placeKind int
+
+const (
+	placeDir     placeKind = iota // a folder to open
+	placeDrive                    // a drive: open, or mount (unlock) first
+	placeNet                      // a connected network location
+	placeServer                   // a saved server, not connected
+	placeConnect                  // "Connect to server…"
+	placeBrowse                   // "Browse network…"
+)
+
+const (
+	secBookmarks = "Bookmarks"
+	secDrives    = "Drives"
+	secNetwork   = "Network"
+)
+
 type place struct {
-	name, path string
+	name, path string // path: the folder; "" until a drive is mounted
+	section    string
+	kind       placeKind
+	info       string
 	bookmark   bool
+	missing    bool // a bookmark whose folder is gone
+	drive      drive
+	net        netMount
+	uri        string // a saved server
 }
 
 func (m model) places() []place {
 	var out []place
 	seen := map[string]bool{}
-	add := func(name, path string, bookmark bool) {
-		if path == "" || seen[path] {
-			return
+	add := func(p place) {
+		if p.path != "" {
+			if seen[p.path] {
+				return
+			}
+			seen[p.path] = true
 		}
-		if fi, err := os.Stat(path); err != nil || !fi.IsDir() {
-			return
-		}
-		seen[path] = true
-		out = append(out, place{name, path, bookmark})
+		out = append(out, p)
 	}
+	isDir := func(p string) bool { fi, err := os.Stat(p); return p != "" && err == nil && fi.IsDir() }
 	home, _ := os.UserHomeDir()
-	add("Home", home, false)
+	if isDir(home) {
+		add(place{name: "Home", path: home})
+	}
 	for _, d := range []string{"Desktop", "Documents", "Downloads", "Music", "Pictures", "Videos"} {
-		add(d, filepath.Join(home, d), false)
+		if p := filepath.Join(home, d); isDir(p) {
+			add(place{name: d, path: p})
+		}
 	}
-	if !seen[trashFilesDir()] { // listed even before anything was deleted; opening it creates it
-		seen[trashFilesDir()] = true
-		out = append(out, place{"Trash", trashFilesDir(), false})
-	}
+	add(place{name: "Trash", path: trashFilesDir()}) // listed even before anything was deleted; opening it creates it
+
 	for _, b := range m.cfg.Bookmarks {
-		add(filepath.Base(b), b, true)
+		p := place{name: filepath.Base(b), path: b, section: secBookmarks, bookmark: true, info: tildePath(b)}
+		if !isDir(b) {
+			p.missing, p.info = true, "missing · "+tildePath(b)
+		}
+		out = append(out, p) // a bookmark of a place above is still listed
 	}
-	for _, mp := range mountPoints() {
-		add(filepath.Base(mp), mp, false)
+
+	add(place{name: "Computer", path: "/", section: secDrives, info: "/"})
+	if devs, err := blockDevices(); err == nil {
+		for _, d := range drives(devs) {
+			add(place{name: d.name, path: d.mount, section: secDrives, kind: placeDrive, drive: d, info: d.info()})
+		}
+	} else {
+		for _, mp := range mountPoints(mountsText()) { // no lsblk: what is mounted
+			add(place{name: filepath.Base(mp), path: mp, section: secDrives, info: tildePath(mp)})
+		}
 	}
-	add("Computer", "/", false)
+
+	connected := map[string]bool{}
+	for _, nm := range append(gvfsMounts(), systemNetMounts(mountsText())...) {
+		connected[strings.TrimSuffix(nm.uri, "/")] = true
+		if nm.path != "" {
+			add(place{name: nm.name, path: nm.path, section: secNetwork, kind: placeNet, net: nm, info: nm.uri})
+		}
+	}
+	for _, s := range m.cfg.Servers {
+		if !connected[strings.TrimSuffix(s, "/")] {
+			add(place{name: serverName(s), section: secNetwork, kind: placeServer, uri: s, info: s})
+		}
+	}
+	add(place{name: "Browse network…", section: secNetwork, kind: placeBrowse, info: "find computers"})
+	add(place{name: "Connect to server…", section: secNetwork, kind: placeConnect, info: "smb · sftp · nfs"})
 	return out
 }
 
-// mountPoints lists removable/user mounts (udisks, /media, /mnt).
-func mountPoints() []string {
-	f, err := os.Open("/proc/self/mounts")
-	if err != nil {
-		return nil
+func (m *model) openPlaces() {
+	m.openPlacesAt(-1)
+}
+
+// openPlacesAt opens places with row sel selected (-1: the current folder).
+func (m *model) openPlacesAt(sel int) {
+	ps := m.places()
+	items := make([]menuItem, len(ps))
+	for i, p := range ps {
+		items[i] = menuItem{label: p.name, suffix: p.info, value: p.path,
+			muted: p.missing || p.kind == placeServer || p.kind == placeConnect || p.kind == placeBrowse || (p.kind == placeDrive && p.path == "")}
+		if p.path == trashFilesDir() {
+			items[i].suffix = ""
+		}
 	}
-	defer f.Close()
+	m.modal = &modal{kind: mMenu, purpose: "places", title: "places", items: items, places: ps}
+	if sel >= 0 {
+		m.modal.sel = min(sel, len(items)-1)
+		return
+	}
+	for i, p := range ps {
+		if p.path == m.cwd && p.path != "" {
+			m.modal.sel = i
+			break
+		}
+	}
+}
+
+// placesBody draws places with a heading over each section.
+func (m model) placesBody(md *modal, inner int) []string {
+	r := m.renderer
+	type line struct {
+		text string
+		item int
+	}
+	var lines []line
+	section, selLine := "", 0
+	for i, p := range md.places {
+		if p.section != section {
+			section = p.section
+			lines = append(lines, line{r.Styles.DetailMeta.Render(" " + section), -1})
+		}
+		if i == md.sel {
+			selLine = len(lines)
+		}
+		it := md.items[i]
+		lines = append(lines, line{r.RenderSoftRow(tideui.SoftRow{Text: it.label, Suffix: it.suffix, Selected: i == md.sel, Muted: it.muted}, inner), i})
+	}
+	rows := max(3, m.height-10)
+	first := max(0, min(selLine-rows/2, len(lines)-rows))
+	var body []string
+	for _, l := range lines[first:min(len(lines), first+rows)] {
+		body = append(body, l.text)
+	}
+	h := []tideui.SoftHint{{Key: "enter", Label: "open"}}
+	if md.sel < len(md.places) {
+		switch p := md.places[md.sel]; {
+		case p.bookmark:
+			h = append(h, tideui.SoftHint{Key: "d", Label: "remove bookmark"})
+		case p.kind == placeDrive && p.path == "" && p.drive.locked:
+			h[0].Label = "unlock"
+		case p.kind == placeDrive && p.path == "":
+			h[0].Label = "mount"
+		case p.kind == placeDrive:
+			h = append(h, tideui.SoftHint{Key: "u", Label: "unmount"})
+		case p.kind == placeNet:
+			h = append(h, tideui.SoftHint{Key: "u", Label: "disconnect"})
+		case p.kind == placeServer:
+			h[0].Label = "connect"
+			h = append(h, tideui.SoftHint{Key: "d", Label: "forget"})
+		}
+	}
+	h = append(h, tideui.SoftHint{Key: "c", Label: "connect to server"}, tideui.SoftHint{Key: "esc", Label: "close"})
+	return append(body, "", r.RenderSoftHints(inner, h...))
+}
+
+// handlePlacesKey handles the keys places adds to a menu; ok is false for
+// the rest (moving, esc).
+func (m model) handlePlacesKey(md *modal, key string) (model, tea.Cmd, bool) {
+	if md.sel < 0 || md.sel >= len(md.places) {
+		return m, nil, false
+	}
+	p := md.places[md.sel]
+	switch key {
+	case "enter", "right", "l":
+		m.modal = nil
+		switch {
+		case p.kind == placeConnect:
+			m.openConnect("", "")
+		case p.kind == placeBrowse:
+			return m, m.openBrowse(), true
+		case p.kind == placeServer:
+			return m, m.connect(p.uri, false), true
+		case p.missing:
+			m.setMsg(tildePath(p.path)+" no longer exists · d removes the bookmark", true)
+			m.openPlacesAt(md.sel)
+		case p.path != "":
+			m.chdir(p.path, "")
+		case p.drive.locked:
+			m.modal = &modal{kind: mInput, purpose: "unlock", title: "unlock " + p.name, secret: true,
+				label: "Passphrase for " + p.name + " (" + p.drive.dev + "):", places: []place{p}}
+		default:
+			m.setMsg("mounting "+p.name+"…", false)
+			return m, mountDrive(p.drive, ""), true
+		}
+		return m, nil, true
+	case "u":
+		switch {
+		case p.kind == placeDrive && p.path != "":
+			m.modal = nil
+			m.leaveMount(p.path)
+			m.setMsg("unmounting "+p.name+"…", false)
+			return m, unmountDrive(p.drive), true
+		case p.kind == placeNet && p.net.system && !hasFuseMount(p.net.path):
+			m.modal = nil
+			return m, m.unmountAsRoot(p.net), true
+		case p.kind == placeNet:
+			m.modal = nil
+			m.setMsg("disconnecting "+p.name+"…", false)
+			return m, m.disconnect(p.net), true
+		}
+		m.setMsg("only mounted drives and network locations can be unmounted", true)
+		return m, nil, true
+	case "d", "delete":
+		switch {
+		case p.bookmark:
+			m.removeBookmark(p.path)
+		case p.kind == placeServer:
+			m.forgetServer(p.uri)
+		default:
+			m.setMsg("only bookmarks and saved servers can be removed", true)
+			return m, nil, true
+		}
+		m.openPlacesAt(md.sel)
+		return m, nil, true
+	case "c", "+":
+		m.openConnect("", "")
+		return m, nil, true
+	}
+	return m, nil, false
+}
+
+// mountsText is /proc/self/mounts (a variable so tests can supply their own).
+var mountsText = readMounts
+
+// mountPoints lists removable/user mounts (udisks, /media, /mnt).
+func mountPoints(mounts string) []string {
 	var out []string
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		fields := strings.Fields(sc.Text())
+	for _, l := range strings.Split(mounts, "\n") {
+		fields := strings.Fields(l)
 		if len(fields) < 2 {
 			continue
 		}
@@ -70,16 +266,29 @@ func mountPoints() []string {
 	return out
 }
 
-func (m *model) addBookmark() {
+func (m model) isBookmarked(dir string) bool {
 	for _, b := range m.cfg.Bookmarks {
-		if b == m.cwd {
-			m.setMsg("already bookmarked", false)
-			return
+		if b == dir {
+			return true
 		}
+	}
+	return false
+}
+
+// toggleBookmark bookmarks this folder, or removes its bookmark.
+func (m *model) toggleBookmark() {
+	if m.arc != nil {
+		m.setMsg("archives can't be bookmarked", true)
+		return
+	}
+	if m.isBookmarked(m.cwd) {
+		m.removeBookmark(m.cwd)
+		m.setMsg("removed bookmark "+tildePath(m.cwd), false)
+		return
 	}
 	m.cfg.Bookmarks = append(m.cfg.Bookmarks, m.cwd)
 	m.cfg.save()
-	m.setMsg("bookmarked "+tildePath(m.cwd), false)
+	m.setMsg("bookmarked "+tildePath(m.cwd)+" · b shows places", false)
 }
 
 func (m *model) removeBookmark(path string) {
@@ -91,6 +300,28 @@ func (m *model) removeBookmark(path string) {
 	}
 	m.cfg.Bookmarks = keep
 	m.cfg.save()
+}
+
+// leaveMount moves every tab out of a folder about to be unmounted, so it
+// isn't kept busy, and tidefiles' own working folder too.
+func (m *model) leaveMount(mp string) {
+	if mp == "" {
+		return
+	}
+	inside := func(p string) bool { return p == mp || strings.HasPrefix(p, strings.TrimSuffix(mp, "/")+"/") }
+	home, _ := os.UserHomeDir()
+	if wd, err := os.Getwd(); err == nil && inside(wd) {
+		_ = os.Chdir(home)
+	}
+	m.saveTab()
+	for i := range m.tabs {
+		if i != m.tab && inside(m.tabs[i].cwd) {
+			m.tabs[i] = tabState{cwd: home, cursors: map[string]string{}, selected: map[string]bool{}, hist: []string{home}}
+		}
+	}
+	if inside(m.cwd) {
+		m.chdir(home, "")
+	}
 }
 
 // ---- open with / terminal ---------------------------------------------
