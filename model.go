@@ -901,7 +901,9 @@ func (m model) perform(act action) (model, tea.Cmd) {
 		if m.inTrash() { // in the trash, r restores
 			return m.perform(actRestore)
 		}
-		if hasCur {
+		if ts := m.targets(); len(m.selected) > 1 {
+			m.openBulkRename(ts)
+		} else if hasCur {
 			m.openInput("rename", "rename", "New name for "+cur.name, cur.name, []string{curPath})
 		}
 	case actNewFile:
