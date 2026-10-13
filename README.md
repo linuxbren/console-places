@@ -51,7 +51,7 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
   settings without a key (sort mode, image previews), and your recent actions come first.
 - **Follows your Omarchy theme** — live, no restart. `T` opens a theme picker.
 - **A modern file manager's toolbox** — select, copy / cut / paste (the system clipboard gets file lists
-  for file managers and paths for terminals and editors), trash with **undo**, rename, new file/folder, properties, permissions (chmod), open with…, places and
+  for file managers and paths for terminals and editors), trash with **undo**, rename (several at once: a template like `Holiday {n:2}` or find & replace, with a live preview), new file/folder, properties, permissions (chmod), open with…, places and
   bookmarks, back/forward history, filter, fuzzy find across subfolders, search inside files (ripgrep when installed; `alt+r` for regex), sort, terminal here, mouse support.
 - **Tabs** — `ctrl+t` opens a tab on the current folder, `ctrl+w` closes it, `tab`/`shift+tab` or `1`…`9`
   switch; each tab keeps its own folder, selection and history. Tabs are reopened next time, with the
@@ -189,7 +189,7 @@ Settings (theme, hidden files, wrap, sort, bookmarks, servers you connected to) 
 ## Keys
 
 Arrow keys first; vim keys work too. Press `?` for every action: type to find one, `enter` runs it.
-`space` select · `SUPER+C`/`X`/`V` copy/cut/paste (plain `c`/`x`/`v` work too) · `d` trash · `ctrl+z` undo · `F2` rename ·
+`space` select · `SUPER+C`/`X`/`V` copy/cut/paste (plain `c`/`x`/`v` work too) · `d` trash · `ctrl+z` undo · `F2` rename (several selected: bulk rename) ·
 `n`/`N` new file/folder · `/` filter · `f` find · `F` search inside files · `X` extract · `Z` compress · `ctrl+t`/`ctrl+w` tabs · `ctrl+n` new window · `alt+t` trash · `s` sort · `S` settings · `b` places, drives, network · `B` bookmark · `i` properties · `P` permissions · `o` open with · `T` theme. Drag over the preview to copy text.
 
 `SUPER+C` needs a one-time Hyprland snippet on Omarchy — see [Install](#install).

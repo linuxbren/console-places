@@ -27,6 +27,7 @@ const (
 	mFind
 	mGrep
 	mSettings
+	mBulk
 )
 
 type menuItem struct {
@@ -53,6 +54,7 @@ type modal struct {
 	grep    *grepState
 	pal     *paletteState
 	places  []place // the places menu's rows, beside items
+	bulk    *bulkState
 }
 
 // ---- text input --------------------------------------------------------
@@ -317,6 +319,8 @@ func (m model) handleModalKey(msg tea.KeyMsg) (model, tea.Cmd) {
 		return m.handleGrepKey(md, msg)
 	case mSettings:
 		return m.handleSettingsKey(md, key)
+	case mBulk:
+		return m.handleBulkKey(md, msg)
 	case mInput:
 		switch key {
 		case "ctrl+s":
@@ -559,6 +563,8 @@ func (m model) modalOverlay() tideui.Overlay {
 		body = append(body, m.grepBody(md, inner)...)
 	case mSettings:
 		body = append(body, m.settingsBody(md, inner)...)
+	case mBulk:
+		body = append(body, m.bulkBody(md, inner)...)
 	case mMenu:
 		if md.purpose == "places" {
 			body = append(body, m.placesBody(md, inner)...)

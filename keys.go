@@ -136,7 +136,7 @@ var bindingGroups = []bindingGroup{
 		{actPaste, []string{"v", "ctrl+v"}, "SUPER+V  v", "paste  (works with other apps)"},
 		{actTrash, []string{"d", "delete"}, "d  delete", "move to trash"},
 		{actDelete, []string{"D", "shift+delete"}, "D", "delete permanently"},
-		{actRename, []string{"f2", "r"}, "F2  r", "rename"},
+		{actRename, []string{"f2", "r"}, "F2  r", "rename  (several selected: template or find & replace)"},
 		{actNewFile, []string{"n"}, "n", "new file"},
 		{actNewFolder, []string{"N"}, "N", "new folder"},
 		{actUndo, []string{"ctrl+z", "u"}, "ctrl+z  u", "undo last change"},
