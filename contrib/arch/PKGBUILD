@@ -3,7 +3,7 @@
 # Build from source with:  makepkg -si   (in this folder)
 # To update: bump pkgver, run `updpkgsums`, then `makepkg --printsrcinfo > .SRCINFO`.
 pkgname=tidefiles
-pkgver=0.8.2
+pkgver=0.9.0
 pkgrel=1
 pkgdesc="Keyboard-first terminal file manager that follows your Omarchy theme"
 arch=('x86_64' 'aarch64')
@@ -30,7 +30,7 @@ optdepends=(
   'nfs-utils: system (root) NFS mounts'
 )
 source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
-sha256sums=('041eba03aa635028c74e2fb2591cb0f354404bb7b702aea252e14ce0de610e7e')
+sha256sums=('033971a9cddb91de09c22f0e7ae4aa1aa059e235c40c815745ff32693a0a2f88')
 
 prepare() {
   cd "$pkgname-$pkgver"
