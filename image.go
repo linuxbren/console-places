@@ -41,7 +41,7 @@ func run(name string, args ...string) ([]byte, error) {
 	return exec.CommandContext(ctx, bin, args...).Output()
 }
 
-// loadImage decodes a still image, a PDF's first page, or a video thumbnail.
+// loadImage decodes a still image or a PDF's first page (videos: videoStill).
 // It returns the image and the source's true pixel size when known.
 func loadImage(path string, kind previewKind) (img image.Image, srcW, srcH int, err error) {
 	ext := strings.ToLower(filepath.Ext(path))
@@ -49,8 +49,6 @@ func loadImage(path string, kind previewKind) (img image.Image, srcW, srcH int, 
 	switch {
 	case kind == kindPDF:
 		data, err = run("pdftoppm", "-png", "-f", "1", "-l", "1", "-r", "110", "-singlefile", path)
-	case kind == kindVideo:
-		data, err = run("ffmpegthumbnailer", "-i", path, "-o", "-", "-c", "png", "-s", "1280", "-f")
 	case ext == ".png" || ext == ".gif" || ext == ".bmp" || ext == ".webp":
 		return decodeFile(path)
 	default: // jpeg (needs EXIF rotation), svg, heic, avif, tiff, ico, psd…
@@ -80,6 +78,20 @@ func loadImage(path string, kind previewKind) (img image.Image, srcW, srcH int, 
 	}
 	b := imgBounds(img)
 	return img, b.w, b.h, nil
+}
+
+// videoStill is a PNG frame from about 10% into a video: from
+// ffmpegthumbnailer, or ffmpeg (at second at) when that isn't installed.
+func videoStill(path string, at float64) ([]byte, error) {
+	data, err := run("ffmpegthumbnailer", "-i", path, "-o", "-", "-c", "png", "-s", "1280", "-f")
+	if _, lerr := exec.LookPath("ffmpegthumbnailer"); lerr == nil {
+		return data, err
+	}
+	if _, lerr := exec.LookPath("ffmpeg"); lerr != nil {
+		return nil, err // say ffmpegthumbnailer is missing
+	}
+	return run("ffmpeg", "-nostdin", "-loglevel", "error", "-ss", fmt.Sprintf("%.3f", at), "-i", path,
+		"-frames:v", "1", "-vf", "scale='min(1280,iw)':-2", "-f", "image2pipe", "-vcodec", "png", "pipe:1")
 }
 
 type dims struct{ w, h int }

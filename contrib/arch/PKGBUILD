@@ -17,7 +17,7 @@ optdepends=(
   'imagemagick: previews of jpeg, svg, heic and other images'
   'poppler: PDF previews'
   'ffmpegthumbnailer: video previews'
-  'ffmpeg: audio tags in previews'
+  'ffmpeg: playing videos and audio tags in previews'
   'xdg-utils: open files in their default app'
   'xdg-terminal-exec: open a terminal here'
   'udisks2: mount drives'

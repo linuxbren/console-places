@@ -191,7 +191,7 @@ func (m model) syncGraphics(inner [3]int, rows int) {
 		clrRow: top, clrCol: left, clrCols: inner[2], clrRows: rows,
 	}
 	ov.key = fmt.Sprintf("%s@%d,%d", m.pv.key, ov.row, ov.col)
-	if m.pv.anim != nil {
+	if m.pv.anim != nil || m.pv.video != nil {
 		ov.frameOf = ov.key
 		ov.key += fmt.Sprintf("#%d", m.pv.frame)
 	}

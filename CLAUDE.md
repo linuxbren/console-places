@@ -23,7 +23,11 @@ One `main` package, one file per concern:
   the UI goroutine. `anim.go` animated GIFs: frames composited per disposal rule, encoded in the
   background, stepped by `animTickMsg` (the `*animation` pointer is the generation id; a tick for
   one no longer in `m.pv` stops it); sixel/kitty frames go out via `gfxOut.flush` since the text
-  frame doesn't change. `psel.go`: mouse drag selection inside the preview (tidefiles keeps the
+  frame doesn't change. `video.go`: videos play in the preview (still first, then after a moment or
+  `alt+p`): ffmpeg decodes muted RGBA at preview size (`-re`) into a pipe, a goroutine encodes frames
+  (shared `frameEncoder`); the `*videoRun` pointer is the generation id; `syncVideo` after every
+  update kills ffmpeg when the preview changes, hides or is covered (pause = kill, resume = restart
+  at the position). `psel.go`: mouse drag selection inside the preview (tidefiles keeps the
   mouse, since terminals capture it per window); release copies the file's own text via `segments`.
 - `ops.go` / `fsops.go` file operations; `jobs.go` background jobs with progress + cancel (paste,
   extract, compress); `archive.go` / `compress.go`; `trash.go` (freedesktop trash, pinned Trash row,

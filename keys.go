@@ -76,6 +76,7 @@ const (
 	actTogglePreview
 	actScrollDown
 	actScrollUp
+	actPlay
 	actHelp
 	actUpdate
 	actQuit
@@ -179,6 +180,7 @@ var bindingGroups = []bindingGroup{
 		{actPreviewNarrower, []string{"shift+left"}, "", ""},
 		{actScrollDown, []string{"J"}, "J / K", "scroll preview"},
 		{actScrollUp, []string{"K"}, "", ""},
+		{actPlay, []string{"alt+p"}, "alt+p", "play / pause a video or GIF in the preview"},
 		{actRefresh, []string{"ctrl+r"}, "ctrl+r", "refresh"},
 		{actTheme, []string{"T"}, "T", "theme picker"},
 		{actSettings, []string{"S"}, "S", "settings (tabs at startup, sort, previews…)"},

@@ -40,7 +40,7 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
 
 - **Three panes** — parent, current folder, and a preview (yazi-style). `shift+←/→` resizes the preview, `p` hides it.
 - **A preview that understands your files** — real inline images (sixel in foot/wezterm/mlterm, kitty graphics in
-  kitty/ghostty, half-block fallback anywhere else), animated GIFs, PDF first pages, video thumbnails with length, resolution and codec, syntax-highlighted code
+  kitty/ghostty, half-block fallback anywhere else), animated GIFs, PDF first pages, videos that play (muted, after a moment on the file; `alt+p` plays or pauses) with length, resolution and codec, syntax-highlighted code
   in your Omarchy colors, rendered markdown (`m` shows the source), pretty-printed JSON, archive contents, audio tags, folder contents.
 - **Word-wrapped preview** — long lines wrap at word boundaries; `w` toggles truncation.
 - **Copy text from the preview** — drag over the preview to select; letting go copies it to the clipboard
@@ -57,7 +57,7 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
   switch; each tab keeps its own folder, selection and history. Tabs are reopened next time, with the
   folder you start in as the active one (or only when no folder is given, or never — see settings).
 - **Settings page** — `S` lists every preference (tabs at startup, theme, hidden files, sort, preview
-  pane, word wrap, markdown, image previews, updates); `←`/`→` change one, and it's saved straight away.
+  pane, word wrap, markdown, image previews, video previews, updates); `←`/`→` change one, and it's saved straight away.
 - **Keeps itself up to date** — release binaries check for a new version once a day, install it after
   verifying its checksum, and ask before restarting (tabs come back), listing what's new since your
   version so you can jump straight in. `U` does it by hand; see
@@ -102,7 +102,8 @@ and offers to install it with your package manager (as root, after you say yes).
 (`f`) to allow just those: UDP from your own network, from the discovery ports 3702 and 137.
 
 Image previews use `imagemagick` (jpeg/svg/heic/…), `poppler` (PDF), `ffmpegthumbnailer` (video),
-`libarchive` (archives) and `ffmpeg` (audio tags) when installed. Set `TIDEFILES_IMAGES=blocks|sixel|kitty`
+`libarchive` (archives) and `ffmpeg` (playing videos, audio tags) when installed. Settings (`S`) →
+*Video previews* chooses: play after a moment (default), play with `alt+p` only, or a still frame. Set `TIDEFILES_IMAGES=blocks|sixel|kitty`
 to override terminal detection.
 
 ## Install

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"image"
 	"io"
 	"os"
 	"path/filepath"
@@ -85,6 +86,7 @@ type previewOpts struct {
 	cellW, cellH int
 	bg           lipgloss.Color
 	syn          syntax
+	videoPlay    string // config.VideoPlay
 }
 
 // preview is the rendered content of the right-hand pane.
@@ -93,8 +95,9 @@ type preview struct {
 	title   string
 	meta    string
 	lines   []string
-	img     *imgSeq    // out-of-band image (sixel/kitty) drawn over the pane
-	anim    *animation // a playing GIF: img or lines is its current frame
+	img     *imgSeq      // out-of-band image (sixel/kitty) drawn over the pane
+	anim    *animation   // a playing GIF: img or lines is its current frame
+	video   *videoPlayer // a video that can play: img or lines is its current frame
 	frame   int
 	loading bool
 	blocks  bool // lines are a half-block picture, not text
@@ -120,7 +123,9 @@ func buildPreview(dir string, e entry, o previewOpts) preview {
 	switch kind {
 	case kindDir:
 		return dirPreview(p, path, o)
-	case kindImage, kindPDF, kindVideo:
+	case kindVideo:
+		return videoPreview(p, path, e, o)
+	case kindImage, kindPDF:
 		if kind == kindImage && strings.EqualFold(filepath.Ext(e.name), ".gif") {
 			return gifPreview(p, path, e, o)
 		}
@@ -167,11 +172,12 @@ func dirPreview(p preview, path string, o previewOpts) preview {
 
 func imagePreview(p preview, path string, e entry, kind previewKind, o previewOpts) preview {
 	p.meta = humanSize(e.size)
-	var info []string
-	if kind == kindVideo {
-		p.meta, info = videoInfo(path, e)
-	}
 	img, w, h, err := loadImage(path, kind)
+	return stillPreview(p, img, w, h, err, kind, e, o, nil)
+}
+
+// stillPreview shows a decoded picture; info lines go above an error.
+func stillPreview(p preview, img image.Image, w, h int, err error, kind previewKind, e entry, o previewOpts, info []string) preview {
 	if err != nil || img == nil {
 		msg := "cannot preview"
 		if err != nil {
@@ -197,33 +203,45 @@ func imagePreview(p preview, path string, e entry, kind previewKind, o previewOp
 	return p
 }
 
-// videoInfo describes a video for the pane header ("1920×1080 · 2:34 · h264
-// · 12 MiB") and, for when there is no thumbnail, as lines. Without ffprobe
-// it is just the size.
-func videoInfo(path string, e entry) (string, []string) {
-	size := humanSize(e.size)
+// videoMeta is what ffprobe says about a video (zero values: unknown).
+type videoMeta struct {
+	w, h  int
+	secs  float64
+	codec string
+}
+
+func probeVideo(path string) videoMeta {
+	var vm videoMeta
 	out, err := run("ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
 		"stream=width,height,codec_name:format=duration", "-of", "default=noprint_wrappers=1", path)
 	if err != nil {
-		return size, nil
+		return vm
 	}
-	var w, h int
-	var dur, codec string
 	for _, l := range strings.Split(strings.TrimSpace(string(out)), "\n") {
 		k, v, _ := strings.Cut(l, "=")
 		switch k {
 		case "width":
-			fmt.Sscanf(v, "%d", &w)
+			fmt.Sscanf(v, "%d", &vm.w)
 		case "height":
-			fmt.Sscanf(v, "%d", &h)
+			fmt.Sscanf(v, "%d", &vm.h)
 		case "codec_name":
-			codec = sanitize(v)
+			vm.codec = sanitize(v)
 		case "duration":
-			var secs float64
-			if _, err := fmt.Sscanf(v, "%f", &secs); err == nil {
-				dur = clock(secs)
-			}
+			fmt.Sscanf(v, "%f", &vm.secs)
 		}
+	}
+	return vm
+}
+
+// videoInfo describes a video for the pane header ("1920×1080 · 2:34 · h264
+// · 12 MiB") and, for when there is no picture, as lines. Without ffprobe
+// it is just the size.
+func videoInfo(vm videoMeta, e entry) (string, []string) {
+	size := humanSize(e.size)
+	w, h, codec := vm.w, vm.h, vm.codec
+	dur := ""
+	if vm.secs > 0 {
+		dur = clock(vm.secs)
 	}
 	var parts, lines []string
 	add := func(label, v string) {
