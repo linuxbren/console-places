@@ -11,6 +11,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -195,7 +196,8 @@ type connection struct {
 	cmd     *exec.Cmd
 	stdin   io.WriteCloser
 	events  chan connEvent
-	secrets int // passwords sent so far: a second ask means the first was wrong
+	secrets int          // passwords sent so far: a second ask means the first was wrong
+	stderr  bytes.Buffer // gio's errors, read once it has exited
 
 	asking       string // the label of the question being answered
 	user, domain string // what was typed at those prompts
@@ -232,8 +234,10 @@ var startConnection = func(uri string, guest bool) (*connection, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Questions come on stdout; stderr has the errors, and warnings (gvfs
+	// logs some) that must not end up in a question.
 	r, w := io.Pipe()
-	c.cmd.Stdout, c.cmd.Stderr = w, w
+	c.cmd.Stdout, c.cmd.Stderr = w, &c.stderr
 	c.stdin = in
 	if err := c.cmd.Start(); err != nil {
 		return nil, err
@@ -269,7 +273,8 @@ func (c *connection) relay(r io.Reader, errc <-chan error) {
 			break
 		}
 	}
-	c.events <- connEvent{done: true, err: <-errc, out: all.String()}
+	err := <-errc // Wait is done, so stderr is complete
+	c.events <- connEvent{done: true, err: err, out: all.String() + "\n" + c.stderr.String()}
 }
 
 // wait delivers the connection's next event.

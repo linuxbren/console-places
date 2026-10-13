@@ -116,9 +116,9 @@ func (m *model) openFirewallAsk() {
 		lines = append(lines, "  "+strings.Join(a[:8], " "))
 	}
 	lines = append(lines, "", "Only UDP from your own network, from those two ports",
-		"(labelled \"tidefiles discovery\"). To undo later:",
-		"  sudo ufw delete allow proto udp from "+lan+" port 3702",
-		"  sudo ufw delete allow proto udp from "+lan+" port 137")
+		"(labelled \"tidefiles discovery\"). To undo later, list them",
+		"with  sudo ufw status numbered  and remove each with",
+		"sudo ufw delete <number>.")
 	m.openConfirm("allowfw", "firewall", lines, []string{lan})
 }
 

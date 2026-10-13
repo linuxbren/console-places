@@ -334,6 +334,9 @@ func (m *model) onDiscover(msg discoverMsg) {
 	if discoveryBlocked(localLAN()) {
 		offers = append(offers, "Your firewall hides Windows PCs: f explains (and can fix it).")
 	}
+	if len(msg.hosts) > 0 {
+		offers = append(offers, "Not listed? c connects by address.")
+	}
 	if _, err := exec.LookPath("avahi-browse"); err != nil {
 		offers = append(offers, "avahi isn't installed (it finds Macs, NAS): i installs it.")
 	}
@@ -376,6 +379,9 @@ func (m *model) pickService(uri string) tea.Cmd {
 // browseOffer handles f (firewall) and i (install avahi) in browse results.
 func (m *model) browseOffer(key string) bool {
 	switch key {
+	case "c":
+		m.openConnect("", "")
+		return true
 	case "f":
 		if discoveryBlocked(localLAN()) {
 			m.openFirewallAsk()

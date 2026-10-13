@@ -860,7 +860,7 @@ func TestFirewallDialog(t *testing.T) {
 	m = mkey(t, m, "f")
 	body := strings.Join(m.modal.lines, "\n")
 	if m.modal.purpose != "allowfw" || !strings.Contains(body, "ufw allow proto udp from 192.168.1.0/24 port 3702") ||
-		!strings.Contains(body, "sudo ufw delete allow proto udp from 192.168.1.0/24 port 137") || !strings.Contains(body, "Windows PCs answer") {
+		!strings.Contains(body, "sudo ufw delete <number>") || !strings.Contains(body, "Windows PCs answer") {
 		t.Fatalf("explanation:\n%s", body)
 	}
 	m, cmd = m.handleModalKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
@@ -913,5 +913,62 @@ func TestInstallDialog(t *testing.T) {
 	m.modal = nil
 	if !m.offerInstall(missing("udisks", "needs udisks")) || m.modal != nil || m.msg != "needs udisks" {
 		t.Fatalf("no package manager: %+v %q", m.modal, m.msg)
+	}
+}
+
+func TestGioWarningsStayOutOfPrompts(t *testing.T) {
+	fakeTool(t, "gio", `echo "(gio mount:1): GVFS-RemoteVolumeMonitor-WARNING **: not supported" >&2
+echo "Enter password for “demo” on “box”:"
+printf 'Password: '
+read p
+echo "gio: sftp://box/: Permission denied" >&2
+exit 2
+`)
+	m := testModel(t, t.TempDir())
+	cmd := m.connect("sftp://box/", false)
+	m, _ = drive1(t, m, cmd)
+	if m.modal == nil || strings.Contains(m.modal.label, "WARNING") || !strings.Contains(m.modal.label, "Enter password") {
+		t.Fatalf("prompt: %+v", m.modal)
+	}
+	m, cmd = m.handleModalKey(tea.KeyMsg{Type: tea.KeyEnter})
+	m, _ = drive1(t, m, cmd)
+	if m.msg != "box: Permission denied" {
+		t.Fatalf("the error still comes from stderr: %q", m.msg)
+	}
+}
+
+func TestBrowseResultsConnectByAddress(t *testing.T) {
+	orig := browseMDNS
+	browseMDNS = func(context.Context) []netHost { return parseAvahi(avahiFixture) }
+	t.Cleanup(func() { browseMDNS = orig })
+	m := testModel(t, t.TempDir())
+	cmd := m.openBrowse()
+	m, _ = drive1(t, m, cmd)
+	if !strings.Contains(strings.Join(m.modal.lines, " "), "c connects by address") {
+		t.Fatalf("hint: %v", m.modal.lines)
+	}
+	m = mkey(t, m, "c")
+	if m.modal == nil || m.modal.purpose != "connect" {
+		t.Fatalf("c: %+v", m.modal)
+	}
+	browseMDNS = func(context.Context) []netHost { return nil }
+	cmd = m.openBrowse()
+	m, _ = drive1(t, m, cmd)
+	m = mkey(t, m, "c") // the "nothing found" text says c too
+	if m.modal == nil || m.modal.purpose != "connect" {
+		t.Fatalf("c when nothing was found: %+v", m.modal)
+	}
+}
+
+func TestFirewallDialogFits(t *testing.T) {
+	orig := localLAN
+	localLAN = func() string { return "192.168.100.0/24" }
+	t.Cleanup(func() { localLAN = orig })
+	m := testModel(t, t.TempDir())
+	m.openFirewallAsk()
+	for _, l := range m.modal.lines {
+		if n := len([]rune(l)); n > 62 { // the modal's text width
+			t.Errorf("%d wide: %q", n, l)
+		}
 	}
 }
