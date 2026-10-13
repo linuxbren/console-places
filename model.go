@@ -530,6 +530,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case animTickMsg:
 		cmd = m.stepAnim(msg)
+	case sizeTickMsg:
+		cmd = m.onSizeTick(msg)
 	case connectMsg:
 		cmd = m.onConnect(msg)
 	case firewallMsg:
@@ -939,7 +941,7 @@ func (m model) perform(act action) (model, tea.Cmd) {
 	case actNewWindow:
 		return m, newWindow(m.cwd)
 	case actProps:
-		m.openProps()
+		return m, m.openProps()
 	case actPerms:
 		m.openPerms()
 	case actOpenWith:
