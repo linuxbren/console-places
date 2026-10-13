@@ -51,7 +51,7 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
   settings without a key (sort mode, image previews), and your recent actions come first.
 - **Follows your Omarchy theme** — live, no restart. `T` opens a theme picker.
 - **A modern file manager's toolbox** — select, copy / cut / paste (the system clipboard gets file lists
-  for file managers and paths for terminals and editors), trash with **undo**, rename (several at once: a template like `Holiday {n:2}` or find & replace, with a live preview), new file/folder, properties, permissions (chmod), open with…, places and
+  for file managers and paths for terminals and editors), trash with **undo**, rename (several at once: a template like `Holiday {n:2}` or find & replace, with a live preview), new file/folder, properties (folder sizes counted in the background: size and space on disk), permissions (chmod), open with…, places and
   bookmarks, back/forward history, filter, fuzzy find across subfolders, search inside files (ripgrep when installed; `alt+r` for regex), sort, terminal here, mouse support.
 - **Tabs** — `ctrl+t` opens a tab on the current folder, `ctrl+w` closes it, `tab`/`shift+tab` or `1`…`9`
   switch; each tab keeps its own folder, selection and history. Tabs are reopened next time, with the

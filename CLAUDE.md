@@ -33,6 +33,8 @@ One `main` package, one file per concern:
   extract, compress); `archive.go` / `compress.go`; `trash.go` (freedesktop trash, pinned Trash row,
   new window); `tabs.go`; `bulkrename.go` (`r` with several selected: template or find & replace, live
   preview with problems, two-pass rename via temp names with RENAME_NOREPLACE and rollback, one undo);
+  `dusize.go` (properties' folder sizes: counted off the UI goroutine, size + on disk, hard links once,
+  refreshed by `sizeTickMsg`, cancelled when the dialog goes);
   `places.go` (`b`: sections Places / Bookmarks / Drives / Network; `B` toggles a bookmark);
   `listplaces.go` (opt-in setting: places rows below every folder's files, the Trash row generalised;
   drives/network from a background scan, never read while drawing); `clipboard.go` (Wayland ext-data-control owner, X11 xclip/xsel,

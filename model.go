@@ -561,6 +561,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd = m.onVideoFrame(msg)
 	case videoAutoMsg:
 		cmd = m.onVideoAuto(msg)
+	case sizeTickMsg:
+		cmd = m.onSizeTick(msg)
 	case connectMsg:
 		cmd = tea.Batch(m.onConnect(msg), m.rescanPlaces(true))
 	case firewallMsg:
@@ -989,7 +991,7 @@ func (m model) perform(act action) (model, tea.Cmd) {
 	case actNewWindow:
 		return m, newWindow(m.cwd)
 	case actProps:
-		m.openProps()
+		return m, m.openProps()
 	case actPerms:
 		m.openPerms()
 	case actOpenWith:

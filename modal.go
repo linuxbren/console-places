@@ -48,8 +48,10 @@ type modal struct {
 	targets []string // absolute paths the modal acts on
 	prev    string   // filter value to restore on esc
 	perm    *permEdit
-	secret  bool // the input is a password: shown as dots
-	guest   bool // a connection prompt that can switch to guest (anonymous)
+	props   []entry    // what properties describe
+	count   *sizeCount // their folder sizes, counted in the background
+	secret  bool       // the input is a password: shown as dots
+	guest   bool       // a connection prompt that can switch to guest (anonymous)
 	find    *findState
 	grep    *grepState
 	pal     *paletteState
@@ -153,12 +155,27 @@ func (m *model) openConfirm(purpose, title string, lines []string, targets []str
 	m.modal = &modal{kind: mConfirm, purpose: purpose, title: title, lines: lines, targets: targets}
 }
 
-func (m *model) openProps() {
+// openProps shows properties; folder sizes are counted in the background
+// (dusize.go), so it returns the command that keeps the numbers current.
+func (m *model) openProps() tea.Cmd {
 	ts := m.targets()
 	if len(ts) == 0 {
-		return
+		return nil
 	}
-	m.modal = &modal{kind: mInfo, purpose: "props", title: "properties", lines: m.propLines(ts)}
+	md := &modal{kind: mInfo, purpose: "props", title: "properties", props: ts}
+	if len(ts) > 1 || ts[0].isDir {
+		var paths []string
+		for _, e := range ts {
+			paths = append(paths, filepath.Join(m.cwd, e.name))
+		}
+		md.count = countSize(paths)
+	}
+	md.lines = m.propLines(ts, md.count)
+	m.modal = md
+	if md.count == nil {
+		return nil
+	}
+	return md.count.tick()
 }
 
 func (m *model) openWith() {
@@ -179,23 +196,18 @@ func (m *model) openWith() {
 	m.modal = &modal{kind: mMenu, purpose: "openwith", title: "open " + e.name + " with", items: items, targets: []string{path}}
 }
 
-func (m model) propLines(ts []entry) []string {
+func (m model) propLines(ts []entry, c *sizeCount) []string {
 	if len(ts) > 1 {
-		var total int64
 		dirs := 0
 		for _, e := range ts {
 			if e.isDir {
 				dirs++
-				total += dirSize(filepath.Join(m.cwd, e.name))
-			} else {
-				total += e.size
 			}
 		}
-		return []string{
+		return append([]string{
 			fmt.Sprintf("%d items selected", len(ts)),
 			fmt.Sprintf("%d folders, %d files", dirs, len(ts)-dirs),
-			"Total size   " + humanSize(total),
-		}
+		}, c.sizeLines("Total size")...)
 	}
 	e := ts[0]
 	path := filepath.Join(m.cwd, e.name)
@@ -203,11 +215,13 @@ func (m model) propLines(ts []entry) []string {
 	if target, err := os.Readlink(path); err == nil {
 		lines = append(lines, "Link to      "+target)
 	}
-	if e.isDir {
-		size, n := dirStats(path)
-		lines = append(lines, "Type         folder", fmt.Sprintf("Contains     %s", plural(n, "item")), "Size         "+humanSize(size))
+	if e.isDir && c != nil {
+		lines = append(append(lines, "Type         folder"), c.sizeLines("Size")...)
 	} else {
-		lines = append(lines, "Type         "+mimeOf(path), "Size         "+fmt.Sprintf("%s (%d bytes)", humanSize(e.size), e.size))
+		lines = append(lines, "Type         "+mimeOf(path), fmt.Sprintf("Size         %s (%s bytes)", humanSize(e.size), groupDigits(e.size)))
+		if st, ok := statOf(path); ok {
+			lines = append(lines, "On disk      "+humanSize(st.Blocks*512))
+		}
 	}
 	lines = append(lines, fmt.Sprintf("Permissions  %s (%04o)", e.mode, e.mode.Perm()))
 	if st, ok := statOf(path); ok {
@@ -238,26 +252,6 @@ func lookupIDs(st *syscall.Stat_t) (owner, group string) {
 	}
 	return
 }
-
-func dirStats(path string) (size int64, n int) {
-	const limit = 200000
-	_ = filepath.WalkDir(path, func(p string, d os.DirEntry, err error) error {
-		if err != nil || p == path {
-			return nil
-		}
-		n++
-		if info, ierr := d.Info(); ierr == nil && !d.IsDir() {
-			size += info.Size()
-		}
-		if n >= limit {
-			return filepath.SkipAll
-		}
-		return nil
-	})
-	return
-}
-
-func dirSize(path string) int64 { s, _ := dirStats(path); return s }
 
 func mimeOf(path string) string {
 	out, err := exec.Command("gio", "info", "-a", "standard::content-type", path).Output()
