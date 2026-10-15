@@ -32,6 +32,7 @@ const (
 	kindAudio
 	kindArchive
 	kindMarkdown // rendered with glamour, which is too slow for the UI goroutine
+	kindDoc      // Word, Excel, PowerPoint, OpenDocument and RTF: their text
 )
 
 // Async kinds shell out to helper tools or decode large files, so they are
@@ -71,6 +72,8 @@ func classify(e entry) previewKind {
 		return kindArchive
 	case markdownExts[ext]:
 		return kindMarkdown
+	case docExts[ext]:
+		return kindDoc
 	}
 	return kindText
 }
@@ -133,6 +136,8 @@ func buildPreview(dir string, e entry, o previewOpts) preview {
 		}
 	case kindAudio:
 		return audioPreview(p, path, e, o)
+	case kindDoc:
+		return docPreview(p, path, e, o)
 	case kindMarkdown:
 		if !o.mdSource && o.line == 0 { // a line to show means source view: rendered lines don't map back
 			return markdownPreview(p, path, e, o)
@@ -303,6 +308,26 @@ func textPreview(p preview, path string, e entry, o previewOpts) preview {
 		p.lines = []string{"  (empty file)"}
 		return p
 	}
+	if bytes.HasPrefix(buf, bplistMagic) {
+		p.meta = "binary plist · " + humanSize(e.size)
+		lines, err := plistPreview(path)
+		if err != nil {
+			lines = []string{"  " + errText(err)}
+		}
+		p.lines = fitLines(lines, o, previewMaxLines)
+		return p
+	}
+	if strings.EqualFold(filepath.Ext(e.name), ".lnk") {
+		if lines, err := lnkPreview(path); err == nil {
+			p.meta = "shortcut · " + humanSize(e.size)
+			p.lines = fitLines(lines, o, previewMaxLines)
+			return p
+		}
+	}
+	enc := ""
+	if text, ok := utf16Text(buf); ok {
+		buf, enc = []byte(text), " · UTF-16"
+	}
 	if bytes.IndexByte(buf, 0) >= 0 {
 		p.lines = []string{"  binary file", "  " + humanSize(e.size)}
 		if out, err := run("file", "-b", path); err == nil {
@@ -335,6 +360,7 @@ func textPreview(p preview, path string, e entry, o previewOpts) preview {
 		joined = hl
 		p.meta = lang + " · " + humanSize(e.size)
 	}
+	p.meta += enc
 	var starts []int
 	p.lines, starts = fitLinesMap(strings.Split(joined, "\n"), o, previewMaxLines)
 	p.src, p.segs = raw, segmentsOf(p.lines, starts, expanded)
