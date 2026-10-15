@@ -333,6 +333,8 @@ func (m *model) onDiscover(msg discoverMsg) {
 	var offers []string
 	if discoveryBlocked(localLAN()) {
 		offers = append(offers, "Your firewall hides Windows PCs: f explains (and can fix it).")
+	} else if len(ourRules()) > 0 {
+		offers = append(offers, "tidefiles opened your firewall for Windows PCs: f undoes it.")
 	}
 	if len(msg.hosts) > 0 {
 		offers = append(offers, "Not listed? c connects by address.")
@@ -376,7 +378,8 @@ func (m *model) pickService(uri string) tea.Cmd {
 	return m.connect(uri, false)
 }
 
-// browseOffer handles f (firewall) and i (install avahi) in browse results.
+// browseOffer handles f (firewall: allow, or undo tidefiles' rules) and i
+// (install avahi) in browse results.
 func (m *model) browseOffer(key string) bool {
 	switch key {
 	case "c":
@@ -385,6 +388,10 @@ func (m *model) browseOffer(key string) bool {
 	case "f":
 		if discoveryBlocked(localLAN()) {
 			m.openFirewallAsk()
+			return true
+		}
+		if len(ourRules()) > 0 {
+			m.openFirewallRemove()
 			return true
 		}
 	case "i":
