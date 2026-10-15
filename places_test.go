@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -860,7 +861,7 @@ func TestFirewallDialog(t *testing.T) {
 	m = mkey(t, m, "f")
 	body := strings.Join(m.modal.lines, "\n")
 	if m.modal.purpose != "allowfw" || !strings.Contains(body, "ufw allow proto udp from 192.168.1.0/24 port 3702") ||
-		!strings.Contains(body, "sudo ufw delete <number>") || !strings.Contains(body, "Windows PCs answer") {
+		!strings.Contains(body, "f removes them") || !strings.Contains(body, "Windows PCs answer") {
 		t.Fatalf("explanation:\n%s", body)
 	}
 	m, cmd = m.handleModalKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
@@ -879,6 +880,50 @@ func TestFirewallDialog(t *testing.T) {
 	}
 	if m.modal == nil || m.modal.purpose != "browsing" || cmd == nil {
 		t.Fatalf("browses again afterwards: %+v", m.modal)
+	}
+}
+
+func TestFirewallRemove(t *testing.T) {
+	log := fakeRoot(t)
+	fakeTool(t, "ufw", `echo "ufw $*" >> `+log+"\n")
+	dir := t.TempDir()
+	origC, origR, origL := ufwConf, ufwRules, localLAN
+	ufwConf, ufwRules = filepath.Join(dir, "ufw.conf"), filepath.Join(dir, "user.rules")
+	localLAN = func() string { return "192.168.1.0/24" }
+	t.Cleanup(func() { ufwConf, ufwRules, localLAN = origC, origR, origL })
+	mkfile(t, ufwConf, "ENABLED=yes\n")
+	ours := "comment=" + hex.EncodeToString([]byte(fwComment))
+	// Ours from two networks, and the user's own rule for the same port.
+	mkfile(t, ufwRules, "### tuple ### allow udp any 0.0.0.0/0 3702 192.168.1.0/24 in "+ours+"\n"+
+		"### tuple ### allow udp any 0.0.0.0/0 137 192.168.1.0/24 in "+ours+"\n"+
+		"### tuple ### allow udp any 0.0.0.0/0 137 10.0.0.0/8 in "+ours+"\n"+
+		"### tuple ### allow udp any 0.0.0.0/0 137 172.16.0.0/12 in\n")
+
+	m := testModel(t, t.TempDir())
+	cmd := m.openBrowse()
+	m, _ = drive1(t, m, cmd)
+	if m.modal == nil || !strings.Contains(strings.Join(m.modal.lines, " "), "f undoes it") {
+		t.Fatalf("offer: %+v", m.modal)
+	}
+	m = mkey(t, m, "f")
+	body := strings.Join(m.modal.lines, "\n")
+	if m.modal.purpose != "removefw" || !strings.Contains(body, "ufw delete allow proto udp from 10.0.0.0/8 port 137") ||
+		strings.Contains(body, "172.16") {
+		t.Fatalf("remove dialog:\n%s", body)
+	}
+	for _, l := range m.modal.lines {
+		if n := len([]rune(l)); n > 62 {
+			t.Errorf("%d wide: %q", n, l)
+		}
+	}
+	m, cmd = m.handleModalKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	m, _ = drive1(t, m, cmd)
+	b, _ := os.ReadFile(log)
+	want := "ufw delete allow proto udp from 192.168.1.0/24 port 3702\n" +
+		"ufw delete allow proto udp from 192.168.1.0/24 port 137\n" +
+		"ufw delete allow proto udp from 10.0.0.0/8 port 137\n"
+	if !strings.HasSuffix(string(b), want) || m.msg != "firewall: removed the discovery rules tidefiles added" {
+		t.Fatalf("ufw saw (%q):\n%s", m.msg, b)
 	}
 }
 

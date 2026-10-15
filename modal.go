@@ -480,6 +480,8 @@ func (m model) runConfirmed(md *modal) (model, tea.Cmd) {
 		return m, m.quit()
 	case "allowfw":
 		return m, m.allowDiscovery(md.targets[0])
+	case "removefw":
+		return m, m.removeDiscovery()
 	case "install":
 		return m, m.install(md.targets[0])
 	case "canceljob", "quitjob":

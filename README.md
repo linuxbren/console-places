@@ -100,6 +100,8 @@ system mounts need `cifs-utils` or `nfs-utils`. When one is missing, tidefiles s
 and offers to install it with your package manager (as root, after you say yes). If your firewall
 (ufw) drops the answers Windows PCs send while browsing, **Browse network…** explains and offers
 (`f`) to allow just those: UDP from your own network, from the discovery ports 3702 and 137.
+Once they're in, `f` in the same place offers to remove them again (only the rules tidefiles
+added, found by their "tidefiles discovery" label).
 
 Image previews use `imagemagick` (jpeg/svg/heic/…), `poppler` (PDF), `ffmpegthumbnailer` (video),
 `libarchive` (archives) and `ffmpeg` (audio tags) when installed. Set `TIDEFILES_IMAGES=blocks|sixel|kitty`
