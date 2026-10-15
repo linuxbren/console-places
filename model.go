@@ -71,6 +71,7 @@ type model struct {
 	undo      []undoItem
 	conn      *connection // the network location being connected to
 	rm        *rootMount  // a system mount being set up
+	forceDisc string      // a busy network location: disconnecting it again forces it
 
 	hist []string
 	hi   int
@@ -552,6 +553,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.reload(m.curName())
 		}
 		m.setMsg(msg.text, msg.err)
+		m.forceDisc = msg.busy
 	case opDoneMsg:
 		m.finishOp(msg.res)
 	case findBatchMsg:

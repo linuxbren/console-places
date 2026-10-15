@@ -246,7 +246,8 @@ type placeMsg struct {
 	open  string
 	text  string
 	err   bool
-	cause error // what went wrong, when it can be installed
+	cause error  // what went wrong, when it can be installed
+	busy  string // a network location that wouldn't disconnect: the next try forces it
 }
 
 // mountDrive mounts dev (unlocking it first with passphrase when it is

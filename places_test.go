@@ -504,6 +504,48 @@ func TestDisconnectNetwork(t *testing.T) {
 	}
 }
 
+// A busy location is tried again, then named with what uses it; the next
+// disconnect forces it.
+func TestDisconnectBusy(t *testing.T) {
+	log := filepath.Join(t.TempDir(), "gio.log")
+	fakeTool(t, "gio", `echo "$@" >> `+log+`
+case "$*" in *-f*) exit 0 ;; esac
+echo "gio: smb://nas/photos/: File system is busy" >&2; exit 2
+`)
+	orig := busyRetry
+	busyRetry = 0
+	t.Cleanup(func() { busyRetry = orig })
+	share := t.TempDir()
+	m := testModel(t, t.TempDir())
+	nm := netMount{name: "photos on nas", uri: "smb://nas/photos/", path: share}
+	m, _ = drive1(t, m, m.disconnect(nm))
+	b, _ := os.ReadFile(log)
+	if strings.Count(string(b), "mount -u smb://nas/photos/") != 2 || !strings.Contains(m.msg, "photos on nas is in use") ||
+		!strings.Contains(m.msg, "disconnect again to force it") || m.forceDisc != nm.uri {
+		t.Fatalf("busy: %q %q\n%s", m.msg, m.forceDisc, b)
+	}
+	m, _ = drive1(t, m, m.disconnect(nm))
+	b, _ = os.ReadFile(log)
+	if !strings.Contains(string(b), "mount -u -f smb://nas/photos/") || m.msg != "disconnected photos on nas" || m.forceDisc != "" {
+		t.Fatalf("forced: %q\n%s", m.msg, b)
+	}
+}
+
+func TestMountUsers(t *testing.T) {
+	dir := t.TempDir()
+	f, err := os.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if got := mountUsers(dir); len(got) != 1 || got[0] != "tidefiles" {
+		t.Fatalf("users: %v", got)
+	}
+	if got := mountUsers(t.TempDir()); len(got) != 0 {
+		t.Fatalf("unused: %v", got)
+	}
+}
+
 func TestSystemNetMounts(t *testing.T) {
 	got := systemNetMounts("//nas/photos /mnt/photos cifs rw 0 0\nme@box:/srv /home/me/box fuse.sshfs rw 0 0\ngvfsd-fuse /run/user/1000/gvfs fuse.gvfsd-fuse rw 0 0\nnas:/export /mnt/my\\040nfs nfs4 rw 0 0\n")
 	if len(got) != 3 || got[0].path != "/mnt/photos" || got[1].name != "me@box:/srv" || got[2].path != "/mnt/my nfs" || !got[0].system {
