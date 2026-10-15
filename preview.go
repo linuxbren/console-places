@@ -424,12 +424,13 @@ func fitLinesMap(src []string, o previewOpts, limit int) ([]string, []int) {
 // sanitize drops control characters (notably ESC) so file content can never
 // inject terminal escape sequences; tabs are kept for expandTabs.
 func sanitize(s string) string {
-	return strings.Map(func(r rune) rune {
+	s = strings.Map(func(r rune) rune {
 		if r == '\t' || (r >= 0x20 && r != 0x7f && !(r >= 0x80 && r < 0xa0)) {
 			return r
 		}
 		return -1
 	}, s)
+	return splitAm.Replace(s)
 }
 
 func expandTabs(s string) string {

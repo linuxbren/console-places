@@ -16,6 +16,10 @@ func (m model) View() string {
 	if m.width == 0 || m.height == 0 {
 		return ""
 	}
+	return fitFrame(m.frame(), m.width)
+}
+
+func (m model) frame() string {
 	inner, rows := m.geometry()
 	m.syncGraphics(inner, rows)
 
