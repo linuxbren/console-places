@@ -179,7 +179,7 @@ var bindingGroups = []bindingGroup{
 		{actPreviewNarrower, []string{"shift+left"}, "", ""},
 		{actScrollDown, []string{"J"}, "J / K", "scroll preview"},
 		{actScrollUp, []string{"K"}, "", ""},
-		{actRefresh, []string{"ctrl+r"}, "ctrl+r", "refresh"},
+		{actRefresh, []string{"ctrl+r"}, "ctrl+r", "refresh (also redraws the screen)"},
 		{actTheme, []string{"T"}, "T", "theme picker"},
 		{actSettings, []string{"S"}, "S", "settings (tabs at startup, sort, previews…)"},
 	}},

@@ -19,7 +19,7 @@ func (m model) View() string {
 	inner, rows := m.geometry()
 	m.syncGraphics(inner, rows)
 
-	parentTitle := tildePath(filepath.Dir(m.cwd))
+	parentTitle := displayPath(filepath.Dir(m.cwd))
 	files := len(m.entries) - len(virtualRows(m.entries))
 	hint := fmt.Sprintf("%d/%d", min(m.cursor+1, files), files)
 	if m.cfg.Sort != "name" || m.cfg.SortDesc {
@@ -32,7 +32,7 @@ func (m model) View() string {
 	if m.filter != "" {
 		hint = "/" + m.filter + "  " + hint
 	}
-	title := tildePath(m.cwd)
+	title := displayPath(m.cwd)
 	if m.arc != nil {
 		// The archive location leads: titles are cut from the right.
 		title = m.arc.label() + "  in " + tildePath(m.cwd)

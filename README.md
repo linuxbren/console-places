@@ -92,7 +92,8 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
     where Nautilus finds it too. **Browse network…** finds computers that share files (mDNS,
     WS-Discovery, NetBIOS) and lists a server's shares. Servers you connect to stay listed; `u`
     disconnects, `d` forgets one. Connections go through gvfs, as in Nautilus, so they're
-    shared with it.
+    shared with it. A connected computer's preview shows its address, the protocol, who you're signed
+    in as and its free space, and folders on it are titled `computer: /path`.
   - **System mounts (root)** — for power users, `ctrl+r` in Connect mounts an SMB or NFS share with
     the kernel's own client (`mount.cifs` / `mount.nfs`) at a folder like `/mnt/photos`, via pkexec
     or sudo: faster, and visible to every program. The password goes in a credentials file that's
