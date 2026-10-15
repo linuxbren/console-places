@@ -117,8 +117,17 @@ func (t *textInput) handle(msg tea.KeyMsg) bool {
 	return true
 }
 
-func (t textInput) view() string {
-	return string(t.r[:t.pos]) + "▏" + string(t.r[t.pos:])
+func (t textInput) view() string { return cursorText(t.r, t.pos) }
+
+// cursorText shows r with a block cursor at pos: the character under it in
+// reverse video (a space past the end), so the text never shifts as the
+// cursor moves. Only reverse is toggled, keeping the row's own colours.
+func cursorText(r []rune, pos int) string {
+	under, rest := " ", ""
+	if pos < len(r) {
+		under, rest = string(r[pos]), string(r[pos+1:])
+	}
+	return string(r[:pos]) + "\x1b[7m" + under + "\x1b[27m" + rest
 }
 
 // ---- opening modals ----------------------------------------------------
@@ -520,7 +529,7 @@ func (m model) modalOverlay() tideui.Overlay {
 		}
 		text := md.in.view()
 		if md.secret {
-			text = strings.Repeat("•", md.in.pos) + "▏" + strings.Repeat("•", len(md.in.r)-md.in.pos)
+			text = cursorText([]rune(strings.Repeat("•", len(md.in.r))), md.in.pos)
 		}
 		h := []tideui.SoftHint{{Key: "enter", Label: "confirm"}, {Key: "esc", Label: "cancel"}}
 		if md.guest {
