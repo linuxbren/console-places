@@ -42,6 +42,10 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
 - **A preview that understands your files** — real inline images (sixel in foot/wezterm/mlterm, kitty graphics in
   kitty/ghostty, half-block fallback anywhere else), animated GIFs, PDF first pages, videos that play (muted, after a moment on the file; `alt+p` plays or pauses) with length, resolution and codec, syntax-highlighted code
   in your Omarchy colors, rendered markdown (`m` shows the source), pretty-printed JSON, archive contents, audio tags, folder contents.
+  From Windows and Mac shares too: Word, Excel, PowerPoint and OpenDocument files and RTF as their text
+  (a spreadsheet's first sheet as a table), binary plists, UTF-16 text (`.reg`, `.inf`, `.strings`…),
+  `.lnk` shortcuts (where they point), `.exe`/`.dll` details (product, company, version) and a Mac
+  `.app`'s name and version.
 - **Word-wrapped preview** — long lines wrap at word boundaries; `w` toggles truncation.
 - **Copy text from the preview** — drag over the preview to select; letting go copies it to the clipboard
   as the file's own text (tabs kept, wrapped lines joined). The selection stays inside the preview pane;
