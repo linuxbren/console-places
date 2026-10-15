@@ -52,7 +52,9 @@ func main() {
 	fmt.Fprint(os.Stdout, "\x1b[22;0t")
 	m := newModel(abs, cfg, *cwdFile, out)
 	if len(cfg.Tabs) > 0 && (restarted || restoreTabsAtStart(cfg, flag.NArg() > 0)) {
-		m.restoreTabs(cfg.Tabs) // last session's tabs, with the starting folder active
+		// Last session's tabs: on the one that was active, or with the folder
+		// named on the command line active.
+		m.restoreTabs(cfg.Tabs, cfg.ActiveTab, flag.NArg() > 0 && !restarted)
 	}
 	if restarted {
 		m.setMsg("updated to "+versionString(), false)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/charmbracelet/x/ansi"
 	"strings"
 	"testing"
 )
@@ -45,9 +46,12 @@ func TestBrowseListsTailscale(t *testing.T) {
 	}
 	var rows []string
 	for _, it := range m.modal.items {
-		rows = append(rows, it.label+" ["+it.suffix+"]")
+		rows = append(rows, it.section+": "+it.label+" ["+it.suffix+"]")
 	}
-	if got := strings.Join(rows, "|"); !strings.Contains(got, "studio  100.64.0.2 [sftp · tailscale]") || strings.Contains(got, "phone") {
+	if got := strings.Join(rows, "|"); !strings.Contains(got, "Tailscale: studio  100.64.0.2 [sftp]") || strings.Contains(got, "phone") {
 		t.Fatalf("rows: %s", got)
+	}
+	if v := ansi.Strip(m.View()); !strings.Contains(v, " Tailscale") {
+		t.Fatalf("no Tailscale heading:\n%s", v)
 	}
 }

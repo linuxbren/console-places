@@ -118,7 +118,7 @@ func TestRestoreTabs(t *testing.T) {
 	os.Mkdir(b, 0o755)
 
 	m := testModel(t, b) // started in b, which was one of the saved tabs
-	m.restoreTabs([]string{a, gone, b})
+	m.restoreTabs([]string{a, gone, b}, 0, true)
 	if len(m.tabs) != 2 || m.tab != 1 || m.cwd != b {
 		t.Fatalf("restore with a match: %d tabs, active %d, %s", len(m.tabs), m.tab, m.cwd)
 	}
@@ -127,10 +127,36 @@ func TestRestoreTabs(t *testing.T) {
 		t.Fatalf("restored tab 1: %s", m.cwd)
 	}
 
-	m = testModel(t, root) // started somewhere new: added at the end, active
-	m.restoreTabs([]string{a, b})
+	m = testModel(t, root) // started in a new folder: added at the end, active
+	m.restoreTabs([]string{a, b}, 0, true)
 	if len(m.tabs) != 3 || m.tab != 2 || m.cwd != root {
 		t.Fatalf("restore without a match: %d tabs, active %d, %s", len(m.tabs), m.tab, m.cwd)
+	}
+
+	// No folder given: back on the tab that was active, no extra tab.
+	m = testModel(t, root)
+	m.restoreTabs([]string{a, b}, 1, false)
+	if len(m.tabs) != 2 || m.tab != 1 || m.cwd != b {
+		t.Fatalf("resume: %d tabs, active %d, %s", len(m.tabs), m.tab, m.cwd)
+	}
+	// The active tab's folder is gone: the one before it.
+	m = testModel(t, root)
+	m.restoreTabs([]string{a, gone, b}, 1, false)
+	if len(m.tabs) != 2 || m.tab != 0 || m.cwd != a {
+		t.Fatalf("resume, active gone: %d tabs, active %d, %s", len(m.tabs), m.tab, m.cwd)
+	}
+	// Every folder gone: just the starting one.
+	m = testModel(t, root)
+	m.restoreTabs([]string{gone}, 0, false)
+	if m.cwd != root || len(m.tabs) > 1 {
+		t.Fatalf("all gone: %d tabs, %s", len(m.tabs), m.cwd)
+	}
+	// The active tab is saved on quit.
+	m = testModel(t, root)
+	m.restoreTabs([]string{a, b}, 1, false)
+	m.quit()
+	if c := loadConfig(); c.ActiveTab != 1 || len(c.Tabs) != 2 {
+		t.Fatalf("saved: %+v", c)
 	}
 }
 

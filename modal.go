@@ -33,6 +33,7 @@ const (
 type menuItem struct {
 	label, suffix, value string
 	muted                bool
+	section              string // a heading is drawn where this changes
 }
 
 type modal struct {
@@ -583,6 +584,9 @@ func (m model) modalOverlay() tideui.Overlay {
 		first := max(0, min(md.sel-rows/2, len(md.items)-rows))
 		for i := first; i < min(len(md.items), first+rows); i++ {
 			it := md.items[i]
+			if it.section != "" && (i == first || md.items[i-1].section != it.section) {
+				body = append(body, r.Styles.Badge.Render(" "+it.section))
+			}
 			body = append(body, r.RenderSoftRow(tideui.SoftRow{Text: it.label, Suffix: it.suffix, Selected: i == md.sel, Muted: it.muted}, inner))
 		}
 		h := []tideui.SoftHint{{Key: "enter", Label: "open"}, {Key: "esc", Label: "close"}}
