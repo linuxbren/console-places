@@ -1138,6 +1138,7 @@ func (m model) handleMouse(msg tea.MouseMsg) (model, tea.Cmd) {
 
 func (m model) quit() tea.Cmd {
 	m.cfg.Tabs = m.tabDirs()
+	m.cfg.ActiveTab = m.tab
 	m.cfg.save()
 	for _, t := range m.tabs {
 		if t.arc != nil {

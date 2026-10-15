@@ -5,7 +5,7 @@ package main
 // probed). Each is offered over SFTP and SMB at its MagicDNS name (its
 // Tailscale address when MagicDNS is off); phones are left out, since they
 // don't serve files. They're listed after the local network's computers,
-// marked "tailscale".
+// under a Tailscale heading.
 
 import (
 	"context"

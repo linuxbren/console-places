@@ -77,30 +77,42 @@ func (m *model) closeTab() bool {
 	return true
 }
 
-// restoreTabs reopens the saved tab folders that still exist, keeping the
-// folder tidefiles was started in (the current state) as the active tab:
+// restoreTabs reopens the saved tab folders that still exist. Started
+// with a folder (given), that folder (the current state) is the active tab:
 // the matching saved tab if there is one, otherwise a tab added at the end.
-func (m *model) restoreTabs(dirs []string) {
+// Started without one, it picks up where the last session left off: on the
+// tab that was active then (the one before it, if that folder is gone).
+func (m *model) restoreTabs(dirs []string, active int, given bool) {
 	start := tabState{cwd: m.cwd, cursors: m.cursors, selected: m.selected, hist: m.hist, hi: m.hi}
 	var tabs []tabState
-	active := -1
-	for _, d := range dirs {
+	cur := -1
+	for i, d := range dirs {
 		if fi, err := os.Stat(d); err != nil || !fi.IsDir() {
 			continue
 		}
-		if d == m.cwd && active < 0 {
-			active = len(tabs)
+		if given && d == m.cwd && cur < 0 {
+			cur = len(tabs)
 			tabs = append(tabs, start)
 			continue
 		}
+		if !given && i <= active {
+			cur = len(tabs)
+		}
 		tabs = append(tabs, tabState{cwd: d, cursors: map[string]string{}, selected: map[string]bool{}, hist: []string{d}})
 	}
-	if active < 0 {
-		active = len(tabs)
+	switch {
+	case given && cur < 0:
+		cur = len(tabs)
 		tabs = append(tabs, start)
+	case len(tabs) == 0: // every saved folder is gone: just the starting one
+		return
 	}
 	m.tabs = tabs
-	m.tab = active // the model already shows this tab's folder
+	if given {
+		m.tab = cur // the model already shows this tab's folder
+		return
+	}
+	m.loadTab(max(0, cur))
 }
 
 // tabDirs are the folders of all tabs, for saving.

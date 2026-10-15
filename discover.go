@@ -356,17 +356,24 @@ func (m *model) onDiscover(msg discoverMsg) {
 		return
 	}
 	var items []menuItem
+	tailnet := false
+	for _, h := range msg.hosts {
+		tailnet = tailnet || h.via == "tailscale"
+	}
 	for _, h := range msg.hosts {
 		for _, s := range h.svcs {
 			label := h.name
 			if h.name != h.addr {
 				label += "  " + h.addr
 			}
-			suffix := s.scheme
-			if h.via == "tailscale" {
-				suffix += " · tailscale"
+			it := menuItem{label: label, suffix: s.scheme, value: s.uri}
+			switch {
+			case h.via == "tailscale":
+				it.section = "Tailscale"
+			case tailnet: // headings only when there are both
+				it.section = "This network"
 			}
-			items = append(items, menuItem{label: label, suffix: suffix, value: s.uri})
+			items = append(items, it)
 		}
 	}
 	m.modal = &modal{kind: mMenu, purpose: "browse", title: "network · " + plural(len(msg.hosts), "computer"), items: items, lines: offers}
