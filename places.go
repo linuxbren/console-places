@@ -230,32 +230,18 @@ func (m model) handlePlacesKey(md *modal, key string) (model, tea.Cmd, bool) {
 		}
 		return m, m.openPlace(p), true
 	case "u":
-		switch {
-		case p.kind == placeDrive && p.path != "":
-			m.modal = nil
-			m.leaveMount(p.path)
-			m.setMsg("unmounting "+p.name+"…", false)
-			return m, unmountDrive(p.drive), true
-		case p.kind == placeNet && p.net.system && !hasFuseMount(p.net.path):
-			m.modal = nil
-			return m, m.unmountAsRoot(p.net), true
-		case p.kind == placeNet:
-			m.modal = nil
-			m.setMsg("disconnecting "+p.name+"…", false)
-			return m, m.disconnect(p.net), true
+		if !unmountable(p) {
+			m.setMsg("only mounted drives and network locations can be unmounted", true)
+			return m, nil, true
 		}
-		m.setMsg("only mounted drives and network locations can be unmounted", true)
-		return m, nil, true
+		m.modal = nil
+		return m, m.unmountPlace(p), true
 	case "d", "delete":
-		switch {
-		case p.bookmark:
-			m.removeBookmark(p.path)
-		case p.kind == placeServer:
-			m.forgetServer(p.uri)
-		default:
+		if !forgettable(p) {
 			m.setMsg("only bookmarks and saved servers can be removed", true)
 			return m, nil, true
 		}
+		m.forgetPlace(p)
 		m.openPlacesAt(md.sel)
 		return m, nil, true
 	case "c", "+":
@@ -263,6 +249,35 @@ func (m model) handlePlacesKey(md *modal, key string) (model, tea.Cmd, bool) {
 		return m, nil, true
 	}
 	return m, nil, false
+}
+
+func unmountable(p place) bool {
+	return (p.kind == placeDrive && p.path != "") || p.kind == placeNet
+}
+
+func forgettable(p place) bool { return p.bookmark || p.kind == placeServer }
+
+// unmountPlace unmounts a drive or disconnects a network location.
+func (m *model) unmountPlace(p place) tea.Cmd {
+	switch {
+	case p.kind == placeDrive:
+		m.leaveMount(p.path)
+		m.setMsg("unmounting "+p.name+"…", false)
+		return unmountDrive(p.drive)
+	case p.net.system && !hasFuseMount(p.net.path):
+		return m.unmountAsRoot(p.net)
+	}
+	m.setMsg("disconnecting "+p.name+"…", false)
+	return m.disconnect(p.net)
+}
+
+// forgetPlace removes a bookmark or a saved server.
+func (m *model) forgetPlace(p place) {
+	if p.bookmark {
+		m.removeBookmark(p.path)
+	} else {
+		m.forgetServer(p.uri)
+	}
 }
 
 // openPlace goes to a place: opens its folder, or mounts, unlocks or

@@ -51,7 +51,7 @@ func TestPlacesInListBookmarks(t *testing.T) {
 	if e, _ := m.current(); e.kind != kindPlace || e.name != "proj" {
 		t.Fatalf("down from b.txt: %+v", e)
 	}
-	if !strings.Contains(m.statusLeft(), "enter opens") || !strings.Contains(m.statusLeft(), "B removes it") {
+	if !strings.Contains(m.statusLeft(), "enter opens") || !strings.Contains(m.statusLeft(), "d (or B) removes the bookmark") {
 		t.Fatalf("status: %q", m.statusLeft())
 	}
 	m.refreshPreview()
@@ -68,9 +68,9 @@ func TestPlacesInListBookmarks(t *testing.T) {
 	}
 
 	// File actions refuse the row; nothing is touched.
-	m = press(t, m, "d")
+	m = press(t, m, "r")
 	if !strings.Contains(m.msg, "shortcut") {
-		t.Fatalf("d on a place row: %q", m.msg)
+		t.Fatalf("r on a place row: %q", m.msg)
 	}
 	if _, err := os.Stat(filepath.Join(home, "proj")); err != nil {
 		t.Fatal("the bookmarked folder must stay")
@@ -93,6 +93,15 @@ func TestPlacesInListBookmarks(t *testing.T) {
 	if got := names(m.entries); got != "main.go --- Bookmarks <proj> --- [Trash]" {
 		t.Fatalf("after B on a file: %q", got)
 	}
+	// d on the row removes the bookmark too, never the folder.
+	m = press(t, m, "G", "k", "d")
+	if got := names(m.entries); got != "main.go --- [Trash]" || len(m.cfg.Bookmarks) != 0 {
+		t.Fatalf("after d on the row: %q %v", got, m.cfg.Bookmarks)
+	}
+	if _, err := os.Stat(filepath.Join(home, "proj")); err != nil {
+		t.Fatal("d on a bookmark must leave the folder")
+	}
+	m = press(t, m, "g", "B")
 
 	// A filter keeps the rows that match; the trash view has none.
 	m.filter = "pro"
@@ -138,7 +147,7 @@ func TestPlacesInListAll(t *testing.T) {
 	m.refreshPreview()
 	pvKey := m.pvKey
 	m, _ = drive1(t, m, m.rescanPlaces(true))
-	want := "a.txt b.txt --- Bookmarks <proj> --- Drives <Backup> --- Network <photos on nas> <srv on me@box> --- [Trash]"
+	want := "a.txt b.txt --- Bookmarks <proj> --- Drives <Backup> --- Network <photos on nas> <srv on me@box> <Browse network…> <Connect to server…> --- [Trash]"
 	if got := names(m.entries); got != want {
 		t.Fatalf("after the scan:\n got %q\nwant %q", got, want)
 	}
@@ -188,6 +197,50 @@ func TestPlacesInListAll(t *testing.T) {
 	v = ansi.Strip(m.View())
 	if strings.Contains(v, "not mounted") || !strings.Contains(v, "1.0 GiB") || !strings.Contains(v, "(empty)") {
 		t.Fatalf("after the rescan:\n%s", v)
+	}
+
+	// d on the mounted drive unmounts it (the folder is left first).
+	for i, e := range m.entries {
+		if e.name == "Backup" {
+			m.cursor = i
+		}
+	}
+	m.msg = ""
+	if !strings.Contains(m.statusLeft(), "d unmounts") {
+		t.Fatalf("status: %q", m.statusLeft())
+	}
+	m, cmd = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("d")})
+	if cmd == nil || m.cwd == mnt {
+		t.Fatalf("d on the mounted drive: %q in %s", m.msg, m.cwd)
+	}
+	mounted = false
+	m, _ = drive1(t, m, cmd)
+	if b, _ := os.ReadFile(log); !strings.Contains(string(b), "unmount -b /dev/sdb1") {
+		t.Fatalf("udisksctl saw: %s", b)
+	}
+
+	// d on a saved server forgets it; on Connect to server… it does nothing.
+	for i, e := range m.entries {
+		if e.name == "srv on me@box" {
+			m.cursor = i
+		}
+	}
+	m = press(t, m, "d")
+	if len(m.cfg.Servers) != 1 || strings.Contains(names(m.entries), "srv on me@box") {
+		t.Fatalf("after d on the server: %v %q", m.cfg.Servers, names(m.entries))
+	}
+	for i, e := range m.entries {
+		if e.name == "Connect to server…" {
+			m.cursor = i
+		}
+	}
+	m = press(t, m, "d")
+	if !strings.Contains(m.msg, "nothing to remove") {
+		t.Fatalf("d on Connect to server…: %q", m.msg)
+	}
+	m = press(t, m, "enter")
+	if m.modal == nil {
+		t.Fatal("enter on Connect to server… opens the address prompt")
 	}
 }
 

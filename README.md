@@ -76,8 +76,9 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
 - **Places: bookmarks, drives and network** — `b` is the sidebar, in sections like Nautilus':
   - **Places in the file list** (opt-in) — Settings (`S`) → *Places in the file list* puts your
     bookmarks (or bookmarks, drives and network) and the Trash below the files in every folder, so
-    moving down past the last file reaches them. `enter` opens, mounts or connects, `B` on a bookmark
-    removes it; `b` stays the full list with the other actions.
+    moving down past the last file reaches them, with *Browse network…* and *Connect to server…*
+    at the end of Network. `enter` opens, mounts or connects; `d` unmounts a drive, disconnects a
+    network location, removes a bookmark or forgets a saved server (never touching files).
   - **Bookmarks** — `B` bookmarks the folder you're in (`B` again removes it); bookmarked folders
     show a `★`.
   - **Drives** — every drive and partition that isn't part of the running system, mounted or not,
