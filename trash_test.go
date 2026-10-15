@@ -33,6 +33,10 @@ func names(es []entry) string {
 			out = append(out, "<"+e.name+">")
 		case kindTrashLink:
 			out = append(out, "[Trash]")
+		case kindNote:
+			if e.name != "" { // a blank line
+				out = append(out, e.name)
+			}
 		default:
 			out = append(out, e.name)
 		}

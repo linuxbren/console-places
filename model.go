@@ -75,6 +75,7 @@ type model struct {
 	scan      *placeScan   // drives and network locations, for places in the list
 	scannedAt time.Time
 	scanning  bool
+	bumped    time.Time // when down last stopped at the last file (see moveDown)
 
 	hist []string
 	hi   int
@@ -363,6 +364,7 @@ func (m *model) fixOffset() {
 }
 
 func (m *model) move(delta int) {
+	m.bumped = time.Time{}
 	if len(m.entries) == 0 {
 		return
 	}
@@ -399,6 +401,7 @@ func (m *model) navigate(dir, focus string, record bool) {
 		m.hi = len(m.hist) - 1
 	}
 	m.cwd, m.offset, m.cursor, m.filter = dir, 0, 0, ""
+	m.bumped = time.Time{}
 	m.selected = map[string]bool{}
 	m.entries = nil
 	m.reload(focus)
@@ -771,17 +774,17 @@ func (m model) perform(act action) (model, tea.Cmd) {
 	case actUp:
 		m.move(-1)
 	case actDown:
-		m.move(1)
+		m.moveDown(1)
 	case actTop:
 		m.move(-len(m.entries))
 	case actBottom:
 		m.move(len(m.entries))
 	case actHalfDown:
-		m.move(rows / 2)
+		m.moveDown(rows / 2)
 	case actHalfUp:
 		m.move(-rows / 2)
 	case actPageDown:
-		m.move(rows)
+		m.moveDown(rows)
 	case actPageUp:
 		m.move(-rows)
 	case actParent:

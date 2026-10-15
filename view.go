@@ -145,11 +145,13 @@ func (m model) renderList(ents []entry, cursor, offset, width, rows int, main bo
 		e := ents[i]
 		switch e.kind {
 		case kindSeparator:
-			rule := " " + strings.Repeat("─", max(1, width-2))
-			if e.name != "" && width > len(e.name)+6 { // a places section
-				rule = " ─ " + e.name + " " + strings.Repeat("─", max(1, width-len(e.name)-5))
+			meta := m.renderer.Styles.DetailMeta
+			if e.name != "" && width > len(e.name)+6 { // a places section: the name stands out
+				label := m.renderer.Styles.Badge.Render(" " + e.name + " ")
+				lines = append(lines, " "+label+meta.Render(" "+strings.Repeat("─", max(1, width-lipgloss.Width(label)-3))))
+				continue
 			}
-			lines = append(lines, m.renderer.Styles.DetailMeta.Render(rule))
+			lines = append(lines, meta.Render(" "+strings.Repeat("─", max(1, width-2))))
 			continue
 		case kindNote:
 			lines = append(lines, "  "+e.name)

@@ -75,9 +75,10 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
   it back (as `name (2)` if something is there now), `D` deletes it forever, `E` empties the trash.
 - **Places: bookmarks, drives and network** — `b` is the sidebar, in sections like Nautilus':
   - **Places in the file list** (opt-in) — Settings (`S`) → *Places in the file list* puts your
-    bookmarks (or bookmarks, drives and network) and the Trash below the files in every folder, so
-    moving down past the last file reaches them, with *Browse network…* and *Connect to server…*
-    at the end of Network. `enter` opens, mounts or connects; `d` unmounts a drive, disconnects a
+    bookmarks (or bookmarks, drives and network) and the Trash below the files in every folder,
+    set apart by a gap and coloured section names. Down stops at the last file (held down, it stays
+    there); one more press goes into them. *Browse network…* and *Connect to server…* end the
+    Network section. `enter` opens, mounts or connects; `d` unmounts a drive, disconnects a
     network location, removes a bookmark or forgets a saved server (never touching files).
   - **Bookmarks** — `B` bookmarks the folder you're in (`B` again removes it); bookmarked folders
     show a `★`.
