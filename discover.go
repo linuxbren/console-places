@@ -7,6 +7,7 @@ package main
 //     announce SMB, SFTP, NFS, AFP, WebDAV or FTP.
 //   - WS-Discovery: Windows 10/11 (and wsdd on Samba servers) answer a probe.
 //   - NetBIOS (nmblookup): older Windows machines and NAS boxes.
+//   - Tailscale (tailscale.go): the tailnet's computers, when it's running.
 //
 // WS-Discovery and NetBIOS replies come back to a multicast or broadcast
 // question, which a firewall that drops unsolicited incoming traffic (ufw's
@@ -36,7 +37,7 @@ const discoverTime = 3 * time.Second
 type netHost struct {
 	name string // as announced, or the address
 	addr string
-	via  string // how it was found: mdns, wsd, netbios
+	via  string // how it was found: mdns, wsd, netbios, tailscale
 	svcs []netService
 }
 
@@ -215,14 +216,15 @@ func discover() tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), discoverTime)
 		defer cancel()
-		var mdns, wsd, nb []netHost
+		var mdns, wsd, nb, ts []netHost
 		var wg sync.WaitGroup
-		wg.Add(3)
+		wg.Add(4)
 		go func() { defer wg.Done(); mdns = browseMDNS(ctx) }()
 		go func() { defer wg.Done(); wsd = browseWSD(ctx) }()
 		go func() { defer wg.Done(); nb = browseNetBIOS(ctx) }()
+		go func() { defer wg.Done(); ts = browseTailscale(ctx) }()
 		wg.Wait()
-		return discoverMsg{mergeHosts(mdns, append(wsd, nb...))}
+		return discoverMsg{append(mergeHosts(mdns, append(wsd, nb...)), ts...)}
 	}
 }
 
@@ -362,7 +364,11 @@ func (m *model) onDiscover(msg discoverMsg) {
 			if h.name != h.addr {
 				label += "  " + h.addr
 			}
-			items = append(items, menuItem{label: label, suffix: s.scheme, value: s.uri})
+			suffix := s.scheme
+			if h.via == "tailscale" {
+				suffix += " · tailscale"
+			}
+			items = append(items, menuItem{label: label, suffix: suffix, value: s.uri})
 		}
 	}
 	m.modal = &modal{kind: mMenu, purpose: "browse", title: "network · " + plural(len(msg.hosts), "computer"), items: items, lines: offers}
