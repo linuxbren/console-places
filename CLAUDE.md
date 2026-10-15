@@ -29,6 +29,11 @@ One `main` package, one file per concern:
   update kills ffmpeg when the preview changes, hides or is covered (pause = kill, resume = restart
   at the position). `psel.go`: mouse drag selection inside the preview (tidefiles keeps the
   mouse, since terminals capture it per window); release copies the file's own text via `segments`.
+- Document previews (kind `kindDoc`, built off the UI goroutine): `officedoc.go` (docx/xlsx/pptx,
+  ODF and RTF as text, `.msi` via `file`), `peinfo.go` (`.exe`/`.dll` version resource, .NET, and
+  a Mac `.app` folder's Info.plist), `plist.go` (binary plists), `wintext.go` (UTF-16 text, `.lnk`).
+  `termwidth.go`: `View()` goes through `fitFrame`, so no line is wider than the terminal (a
+  terminal that measures a character wider than we do would otherwise scroll the screen).
 - `ops.go` / `fsops.go` file operations; `jobs.go` background jobs with progress + cancel (paste,
   extract, compress); `archive.go` / `compress.go`; `trash.go` (freedesktop trash, pinned Trash row,
   new window); `tabs.go`; `bulkrename.go` (`r` with several selected: template or find & replace, live
@@ -48,7 +53,10 @@ One `main` package, one file per concern:
   via avahi-browse, a WS-Discovery probe and nmblookup (ufw drops WSD/NetBIOS replies; mDNS passes),
   smbclient lists shares. `rootmount.go` opt-in kernel cifs/nfs mounts via pkexec/sudo with the
   terminal handed over (`tea.ExecProcess`); the cifs password goes in a 0600 file deleted after.
-  `firewall.go` offers (with a yes) two ufw rules letting WSD/NetBIOS answers in from the LAN;
+  `tailscale.go` lists the tailnet's online computers from `tailscale status --json` (Tailscale… in
+  Network, and its own heading in Browse network…). `netinfo.go` fills a connected location's
+  preview (address, protocol, user, space) off the UI goroutine. `firewall.go` offers (with a yes) two ufw rules letting WSD/NetBIOS answers in from the LAN, and removes them again (only rules
+  carrying its comment);
   `install.go` turns a `missingError` into an offer to install the package (per package manager).
   Root actions share `privileged()` + `runPrivileged` (pkexec/sudo, terminal handed over).
   Tests stub every system lookup in `TestMain` (lsblk, gvfs, mounts, keyring, network, ufw, pm).

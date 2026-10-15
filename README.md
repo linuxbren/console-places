@@ -36,6 +36,16 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
     <td align="center">Animated GIFs, played in the preview · Ristretto</td>
     <td align="center">Drag in the preview to copy text · Hackerman</td>
   </tr>
+  <tr>
+    <td><img src="docs/screenshots/tailscale.png" alt="Bookmarks, drives and network listed below the files; Tailscale… lists the tailnet's computers to connect to (Catppuccin theme)"></td>
+    <td><img src="docs/screenshots/documents.png" alt="An Excel spreadsheet previewed as a table, with places listed below the files (Gruvbox theme)"></td>
+    <td><img src="docs/screenshots/rename.png" alt="Renaming six photos at once with the template Norway {n:2}, with a live preview of the new names (Everforest theme)"></td>
+  </tr>
+  <tr>
+    <td align="center">Places in the list, Tailscale computers · Catppuccin</td>
+    <td align="center">Office documents previewed · Gruvbox</td>
+    <td align="center">Rename many at once · Everforest</td>
+  </tr>
 </table>
 
 - **Three panes** — parent, current folder, and a preview (yazi-style). `shift+←/→` resizes the preview, `p` hides it.
@@ -98,7 +108,8 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
     WS-Discovery, NetBIOS) and lists a server's shares; with Tailscale installed, **Tailscale…**
     (under Network) lists your tailnet's online computers at once (by MagicDNS name, over SFTP or
     SMB), and Browse network… adds them under their own heading. Servers you connect to stay listed; `u`
-    disconnects, `d` forgets one. Connections go through gvfs, as in Nautilus, so they're
+    disconnects (if something is still using it, tidefiles names what and forces it on a second
+    try), `d` forgets one. Connections go through gvfs, as in Nautilus, so they're
     shared with it. A connected computer's preview shows its address, the protocol, who you're signed
     in as and its free space, and folders on it are titled `computer: /path`.
   - **System mounts (root)** — for power users, `ctrl+r` in Connect mounts an SMB or NFS share with
