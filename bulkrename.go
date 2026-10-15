@@ -157,14 +157,18 @@ func (m model) bulkBody(md *modal, inner int) []string {
 		if i == b.field {
 			text = in.view()
 		}
-		return r.RenderSoftRow(tideui.SoftRow{Text: fmt.Sprintf("%-13s %s", label, text), Selected: i == b.field, Muted: i != b.field}, inner)
+		return r.RenderSoftRow(tideui.SoftRow{Text: fmt.Sprintf("%-14s %s", label, text), Selected: i == b.field, Muted: i != b.field}, inner)
 	}
+	help := func(s string) string { return r.Styles.DetailMeta.Render(ansi.Truncate("  "+s, inner, "…")) }
 	body := []string{
-		field(0, "Template", b.tmpl),
-		r.Styles.DetailMeta.Render("  {name} the old name · {n} 1, 2, 3… · {n:3} 001, 002…"),
+		field(0, "New names:", b.tmpl),
+		help("Type over {name} with any name; the extension stays."),
+		help("{name} = the old name · {n} = 1, 2, 3… · {n:2} = 01, 02…"),
+		help("e.g. Beach {n:2} → Beach 01.jpg, Beach 02.jpg, …"),
 		"",
-		field(1, "Find", b.find),
-		field(2, "Replace with", b.repl),
+		help("Or change part of every name (tab to get here):"),
+		field(1, "Find:", b.find),
+		field(2, "Replace with:", b.repl),
 		"",
 	}
 	rows := b.rows()
@@ -174,7 +178,7 @@ func (m model) bulkBody(md *modal, inner int) []string {
 			bad++
 		}
 	}
-	show := max(3, m.height-22)
+	show := max(3, m.height-25)
 	b.top = max(0, min(b.top, len(rows)-show))
 	for _, row := range rows[b.top:min(len(rows), b.top+show)] {
 		line := row.from + "  →  " + row.to
@@ -191,7 +195,7 @@ func (m model) bulkBody(md *modal, inner int) []string {
 	if more := len(rows) - b.top - show; more > 0 {
 		body = append(body, r.Styles.DetailMeta.Render(fmt.Sprintf("  … %d more (pgdn)", more)))
 	}
-	h := []tideui.SoftHint{{Key: "enter", Label: "rename"}, {Key: "tab", Label: "template / find & replace"}, {Key: "esc", Label: "cancel"}}
+	h := []tideui.SoftHint{{Key: "enter", Label: "rename"}, {Key: "tab", Label: "next box"}, {Key: "esc", Label: "cancel"}}
 	if bad > 0 {
 		h[0].Label = fmt.Sprintf("fix %d first", bad)
 	}
