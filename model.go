@@ -70,6 +70,7 @@ type model struct {
 	tab         int
 	undo        []undoItem
 	conn        *connection  // the network location being connected to
+	forceDisc   string       // a busy network location: disconnecting it again forces it
 	rm          *rootMount   // a system mount being set up
 	vid         *videoPlayer // the video playing in the preview, if any
 	scan        *placeScan   // drives and network locations, for places in the list
@@ -607,6 +608,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.reload(m.curName())
 		}
 		m.setMsg(msg.text, msg.err)
+		m.forceDisc = msg.busy
 	case opDoneMsg:
 		m.finishOp(msg.res)
 	case findBatchMsg:
