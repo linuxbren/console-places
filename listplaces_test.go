@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
@@ -42,15 +43,27 @@ func TestPlacesInListBookmarks(t *testing.T) {
 	if got := names(m.entries); got != "a.txt b.txt --- Bookmarks <proj> --- [Trash]" {
 		t.Fatalf("rows: %q", got)
 	}
-	if v := ansi.Strip(m.View()); !strings.Contains(v, "─ Bookmarks ─") || !strings.Contains(v, "1/2") {
+	if v := ansi.Strip(m.View()); !strings.Contains(v, " Bookmarks  ─") || !strings.Contains(v, "1/2") {
 		t.Fatalf("view (labelled rule, count of files only):\n%s", v)
 	}
 
-	// Down past the last file skips the rules; G reaches the Trash.
-	m = press(t, m, "down", "down")
+	// Down stops at the last file; held down (fast repeats) stays there, a
+	// fresh press goes on past the gap and the rule. G reaches the Trash.
+	m = press(t, m, "down", "down", "down", "down")
+	if e, _ := m.current(); e.name != "b.txt" || !strings.Contains(m.msg, "again for places") {
+		t.Fatalf("down held at the last file: %+v %q", e, m.msg)
+	}
+	m.bumped = m.bumped.Add(-placesHold - time.Millisecond)
+	m = press(t, m, "down")
 	if e, _ := m.current(); e.kind != kindPlace || e.name != "proj" {
 		t.Fatalf("down from b.txt: %+v", e)
 	}
+	// Paging stops at the last file too.
+	m = press(t, m, "g", "pgdown")
+	if e, _ := m.current(); e.name != "b.txt" {
+		t.Fatalf("pgdown: %+v", e)
+	}
+	m = press(t, m, "G", "k")
 	if !strings.Contains(m.statusLeft(), "enter opens") || !strings.Contains(m.statusLeft(), "d (or B) removes the bookmark") {
 		t.Fatalf("status: %q", m.statusLeft())
 	}
@@ -158,7 +171,7 @@ func TestPlacesInListAll(t *testing.T) {
 		t.Fatal("rescans wait placesRescan")
 	}
 	v := ansi.Strip(m.View())
-	for _, s := range []string{"─ Drives ─", "Backup", "not mounted", "─ Network ─", "not connected"} {
+	for _, s := range []string{" Drives  ─", "Backup", "not mounted", " Network  ─", "not connected"} {
 		if !strings.Contains(v, s) {
 			t.Fatalf("view lacks %q:\n%s", s, v)
 		}

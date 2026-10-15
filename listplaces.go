@@ -89,14 +89,54 @@ func (m *model) refreshPlaceRows() {
 // places rows, under an "(empty)" note when there are no files.
 func (m model) tailRows(files int) []entry {
 	rows := m.trashRows()
-	if files == 0 && len(rows) > 0 && m.listsPlaces() {
-		note := "(empty)"
-		if m.filter != "" {
-			note = "(no matches)"
-		}
-		rows = append([]entry{{name: note, kind: kindNote}}, rows...)
+	if len(rows) == 0 || !m.listsPlaces() {
+		return rows
 	}
-	return rows
+	note := "" // a blank line between the files and the places
+	switch {
+	case files > 0:
+	case m.filter != "":
+		note = "(no matches)"
+	default:
+		note = "(empty)"
+	}
+	return append([]entry{{name: note, kind: kindNote}}, rows...)
+}
+
+// placesHold: a down key repeating faster than this is being held, and
+// doesn't cross from the last file into the places.
+const placesHold = 250 * time.Millisecond
+
+// firstPlaceRow is the index of the first row after the files when places
+// are listed below some (-1 otherwise).
+func (m model) firstPlaceRow() int {
+	if !m.listsPlaces() {
+		return -1
+	}
+	i := len(m.entries) - len(virtualRows(m.entries))
+	if i == 0 || i == len(m.entries) {
+		return -1
+	}
+	return i
+}
+
+// moveDown moves down, stopping at the last file: going on into the places
+// takes another press (one that isn't the key held down), so scrolling
+// through a folder doesn't run into them by accident.
+func (m *model) moveDown(delta int) {
+	wall := m.firstPlaceRow()
+	switch {
+	case wall < 0 || m.cursor >= wall || m.cursor+delta < wall:
+		m.move(delta)
+	case m.cursor < wall-1: // land on the last file
+		m.move(wall - 1 - m.cursor)
+		m.bumped = time.Now()
+	case !m.bumped.IsZero() && time.Since(m.bumped) > placesHold:
+		m.move(delta)
+	default:
+		m.bumped = time.Now()
+		m.setMsg("last file · ↓ again for places", false)
+	}
 }
 
 // virtualRows is the tail of ents that isn't files.
