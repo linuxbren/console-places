@@ -216,9 +216,11 @@ func (m model) placeRows() []entry {
 	if m.cfg.PlacesInList == placesListAll && m.scan != nil {
 		section(secDrives, m.scan.drives)
 		net := append(append([]place(nil), m.scan.nets...), m.scan.servers(m.cfg.Servers)...)
-		section(secNetwork, append(net,
-			place{name: "Browse network…", section: secNetwork, kind: placeBrowse, info: "find computers"},
-			place{name: "Connect to server…", section: secNetwork, kind: placeConnect, info: "smb · sftp · nfs"}))
+		net = append(net, place{name: "Browse network…", section: secNetwork, kind: placeBrowse, info: "find computers"})
+		if m.scan.tailscale {
+			net = append(net, tailnetPlace)
+		}
+		section(secNetwork, append(net, place{name: "Connect to server…", section: secNetwork, kind: placeConnect, info: "smb · sftp · nfs"}))
 	}
 	if keep("trash") {
 		out = append(out, entry{kind: kindSeparator}, entry{name: "Trash", isDir: true, kind: kindTrashLink})
@@ -231,7 +233,7 @@ func shortcutAction(e entry) string {
 	switch {
 	case e.pl == nil:
 		return "opens it"
-	case e.pl.kind == placeConnect || e.pl.kind == placeBrowse:
+	case e.pl.kind == placeConnect || e.pl.kind == placeBrowse || e.pl.kind == placeTailnet:
 		return placeAction(*e.pl)
 	}
 	return placeAction(*e.pl) + " it"
@@ -284,6 +286,8 @@ func placeIcon(p place) string {
 		return "\uf067" // nf-fa-plus
 	case p.kind == placeBrowse:
 		return "\uf002" // nf-fa-search
+	case p.kind == placeTailnet:
+		return "\uf0c2" // nf-fa-cloud
 	}
 	return "\uf233" // nf-fa-server
 }
@@ -312,6 +316,8 @@ func placeAction(p place) string {
 		return "asks for a server address"
 	case p.kind == placeBrowse:
 		return "looks for computers nearby"
+	case p.kind == placeTailnet:
+		return "lists your Tailscale computers"
 	case p.kind == placeDrive && p.path == "" && p.drive.locked:
 		return "unlocks"
 	case p.kind == placeDrive && p.path == "":
@@ -339,6 +345,8 @@ func (m model) placePreview(p place) preview {
 		pv.lines = []string{"  Connect to a Windows, Mac or Samba share (smb://),", "  an SSH server (sftp://) or an NFS export (nfs://).", "", "  enter asks for the address"}
 	case p.kind == placeBrowse:
 		pv.lines = []string{"  Look for computers and shares on your network.", "", "  enter starts looking"}
+	case p.kind == placeTailnet:
+		pv.lines = []string{"  The computers on your tailnet that are online,", "  to connect to over SFTP or SMB wherever you are.", "", "  enter lists them"}
 	default:
 		pv.lines = []string{"  " + p.drive.dev + " · " + p.drive.fstype, "", "  not mounted · enter " + strings.TrimSuffix(placeAction(p), "s")}
 	}

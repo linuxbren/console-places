@@ -5,7 +5,8 @@ package main
 // probed). Each is offered over SFTP and SMB at its MagicDNS name (its
 // Tailscale address when MagicDNS is off); phones are left out, since they
 // don't serve files. They're listed after the local network's computers,
-// under a Tailscale heading.
+// under a Tailscale heading. Network (b, and the rows in the file list) also
+// has a Tailscale… entry that lists just them, at once.
 
 import (
 	"context"
@@ -28,6 +29,14 @@ type tsStatus struct {
 	BackendState   string
 	CurrentTailnet *struct{ MagicDNSEnabled bool }
 	Peer           map[string]tsPeer
+}
+
+var tailnetPlace = place{name: "Tailscale…", section: secNetwork, kind: placeTailnet, info: "your tailnet"}
+
+// hasTailscale says whether tailscale is installed (Network then lists it).
+var hasTailscale = func() bool {
+	_, err := exec.LookPath("tailscale")
+	return err == nil
 }
 
 // browseTailscale lists the tailnet's computers (nil without tailscale).

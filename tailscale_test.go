@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 	"strings"
 	"testing"
@@ -53,5 +54,39 @@ func TestBrowseListsTailscale(t *testing.T) {
 	}
 	if v := ansi.Strip(m.View()); !strings.Contains(v, " Tailscale") {
 		t.Fatalf("no Tailscale heading:\n%s", v)
+	}
+}
+
+func TestTailnetEntry(t *testing.T) {
+	origB, origH := browseTailscale, hasTailscale
+	browseTailscale = func(context.Context) []netHost { return parseTailscale([]byte(tsFixture)) }
+	hasTailscale = func() bool { return true }
+	t.Cleanup(func() { browseTailscale, hasTailscale = origB, origH })
+
+	m := testModel(t, t.TempDir())
+	m.openPlaces()
+	found := false
+	for _, p := range m.modal.places {
+		found = found || p.kind == placeTailnet
+	}
+	if !found {
+		t.Fatal("b lacks Tailscale…")
+	}
+	m.modal = nil
+
+	m.cfg.PlacesInList = placesListAll
+	m, _ = drive1(t, m, m.rescanPlaces(true))
+	for i, e := range m.entries {
+		if e.name == "Tailscale…" {
+			m.cursor = i
+		}
+	}
+	if e, _ := m.current(); e.name != "Tailscale…" {
+		t.Fatalf("no Tailscale… row: %q", names(m.entries))
+	}
+	m, cmd := m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	m, _ = drive1(t, m, cmd)
+	if m.modal == nil || m.modal.title != "tailscale · 2 computers" || len(m.modal.lines) != 1 {
+		t.Fatalf("tailnet list: %+v", m.modal)
 	}
 }

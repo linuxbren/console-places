@@ -91,8 +91,9 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
     ssh), `nfs://`, `ftp://`, `dav://`; `\\pc\share` and `user@host:/path` work too. Passwords and
     other questions are asked inside tidefiles; `ctrl+s` at the password saves it in your keyring,
     where Nautilus finds it too. **Browse network…** finds computers that share files (mDNS,
-    WS-Discovery, NetBIOS) and lists a server's shares; with Tailscale running it also lists your
-    tailnet's computers (by MagicDNS name, over SFTP or SMB). Servers you connect to stay listed; `u`
+    WS-Discovery, NetBIOS) and lists a server's shares; with Tailscale installed, **Tailscale…**
+    (under Network) lists your tailnet's online computers at once (by MagicDNS name, over SFTP or
+    SMB), and Browse network… adds them under their own heading. Servers you connect to stay listed; `u`
     disconnects, `d` forgets one. Connections go through gvfs, as in Nautilus, so they're
     shared with it. A connected computer's preview shows its address, the protocol, who you're signed
     in as and its free space, and folders on it are titled `computer: /path`.

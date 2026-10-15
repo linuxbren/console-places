@@ -159,7 +159,7 @@ func (m model) renderList(ents []entry, cursor, offset, width, rows int, main bo
 		case kindPlace:
 			p := e.pl
 			row := tideui.Row{Prefix: "  ", Text: placeIcon(*p) + " " + sanitize(e.name), Selected: i == cursor,
-				Muted: p.kind == placeServer || p.kind == placeConnect || p.kind == placeBrowse || (p.kind == placeDrive && p.path == "")}
+				Muted: p.kind == placeServer || p.kind == placeConnect || p.kind == placeBrowse || p.kind == placeTailnet || (p.kind == placeDrive && p.path == "")}
 			if width >= 28 {
 				row.Suffix = placeSuffix(*p) + " "
 			}

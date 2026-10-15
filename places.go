@@ -25,6 +25,7 @@ const (
 	placeServer                   // a saved server, not connected
 	placeConnect                  // "Connect to server…"
 	placeBrowse                   // "Browse network…"
+	placeTailnet                  // "Tailscale…": the tailnet's computers
 )
 
 const (
@@ -89,6 +90,9 @@ func (m model) places() []place {
 		add(p)
 	}
 	add(place{name: "Browse network…", section: secNetwork, kind: placeBrowse, info: "find computers"})
+	if hasTailscale() {
+		add(tailnetPlace)
+	}
 	add(place{name: "Connect to server…", section: secNetwork, kind: placeConnect, info: "smb · sftp · nfs"})
 	return out
 }
@@ -100,10 +104,11 @@ func (m model) places() []place {
 type placeScan struct {
 	drives, nets []place
 	connected    map[string]bool // connected URIs, without a trailing slash
+	tailscale    bool            // tailscale is installed
 }
 
 func scanPlaces() placeScan {
-	sc := placeScan{connected: map[string]bool{}}
+	sc := placeScan{connected: map[string]bool{}, tailscale: hasTailscale()}
 	if devs, err := blockDevices(); err == nil {
 		for _, d := range drives(devs) {
 			sc.drives = append(sc.drives, place{name: d.name, path: d.mount, section: secDrives, kind: placeDrive, drive: d, info: d.info()})
@@ -143,7 +148,7 @@ func (m *model) openPlacesAt(sel int) {
 	items := make([]menuItem, len(ps))
 	for i, p := range ps {
 		items[i] = menuItem{label: p.name, suffix: p.info, value: p.path,
-			muted: p.missing || p.kind == placeServer || p.kind == placeConnect || p.kind == placeBrowse || (p.kind == placeDrive && p.path == "")}
+			muted: p.missing || p.kind == placeServer || p.kind == placeConnect || p.kind == placeBrowse || p.kind == placeTailnet || (p.kind == placeDrive && p.path == "")}
 		if p.path == trashFilesDir() {
 			items[i].suffix = ""
 		}
@@ -288,6 +293,8 @@ func (m *model) openPlace(p place) tea.Cmd {
 		m.openConnect("", "")
 	case p.kind == placeBrowse:
 		return m.openBrowse()
+	case p.kind == placeTailnet:
+		return m.openTailnet()
 	case p.kind == placeServer:
 		return m.connect(p.uri, false)
 	case p.path != "":

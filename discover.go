@@ -209,7 +209,21 @@ var netbiosName = func(ctx context.Context, ip string) string {
 	return ""
 }
 
-type discoverMsg struct{ hosts []netHost }
+type discoverMsg struct {
+	hosts   []netHost
+	tailnet bool // only the tailnet was asked (Tailscale…)
+}
+
+// openTailnet lists the tailnet's computers (Tailscale…), without the
+// local network's slower discovery.
+func (m *model) openTailnet() tea.Cmd {
+	m.modal = &modal{kind: mInfo, purpose: "browsing", title: "tailscale", lines: []string{"Asking Tailscale for your computers…"}}
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), discoverTime)
+		defer cancel()
+		return discoverMsg{hosts: browseTailscale(ctx), tailnet: true}
+	}
+}
 
 // discover runs every kind of browsing at once and merges what was found.
 func discover() tea.Cmd {
@@ -224,7 +238,7 @@ func discover() tea.Cmd {
 		go func() { defer wg.Done(); nb = browseNetBIOS(ctx) }()
 		go func() { defer wg.Done(); ts = browseTailscale(ctx) }()
 		wg.Wait()
-		return discoverMsg{append(mergeHosts(mdns, append(wsd, nb...)), ts...)}
+		return discoverMsg{hosts: append(mergeHosts(mdns, append(wsd, nb...)), ts...)}
 	}
 }
 
@@ -332,16 +346,26 @@ func (m *model) onDiscover(msg discoverMsg) {
 	if m.modal == nil || m.modal.purpose != "browsing" {
 		return // closed meanwhile
 	}
+	if msg.tailnet && len(msg.hosts) == 0 {
+		m.modal = &modal{kind: mInfo, purpose: "browsed", title: "tailscale", lines: []string{
+			"No computers on your tailnet are online (phones aren't",
+			"listed), or Tailscale isn't running: tailscale up starts it.",
+			"",
+			"c connects by address, e.g. sftp://my-pc.tailnet.ts.net"}}
+		return
+	}
 	var offers []string
-	if discoveryBlocked(localLAN()) {
+	switch {
+	case msg.tailnet:
+	case discoveryBlocked(localLAN()):
 		offers = append(offers, "Your firewall hides Windows PCs: f explains (and can fix it).")
-	} else if len(ourRules()) > 0 {
+	case len(ourRules()) > 0:
 		offers = append(offers, "tidefiles opened your firewall for Windows PCs: f undoes it.")
 	}
 	if len(msg.hosts) > 0 {
 		offers = append(offers, "Not listed? c connects by address.")
 	}
-	if _, err := exec.LookPath("avahi-browse"); err != nil {
+	if _, err := exec.LookPath("avahi-browse"); err != nil && !msg.tailnet {
 		offers = append(offers, "avahi isn't installed (it finds Macs, NAS): i installs it.")
 	}
 	if len(msg.hosts) == 0 {
@@ -378,7 +402,7 @@ func (m *model) onDiscover(msg discoverMsg) {
 			items = append(items, it)
 		}
 	}
-	m.modal = &modal{kind: mMenu, purpose: "browse", title: "network · " + plural(len(msg.hosts), "computer"), items: items, lines: offers}
+	m.modal = &modal{kind: mMenu, purpose: "browse", title: map[bool]string{false: "network", true: "tailscale"}[msg.tailnet] + " · " + plural(len(msg.hosts), "computer"), items: items, lines: offers}
 }
 
 // pickService connects to a service picked while browsing; for SMB it lists
