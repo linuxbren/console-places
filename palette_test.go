@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/charmbracelet/x/ansi"
 	"os"
 	"path/filepath"
 	"strings"
@@ -196,6 +197,19 @@ func TestPaletteIDsAreUniqueAndStable(t *testing.T) {
 		seen[cm.id] = true
 		if strings.HasPrefix(cm.id, "act:") || strings.HasPrefix(cm.id, "key::") {
 			t.Errorf("palette id %q (%s) is not stable", cm.id, cm.title)
+		}
+	}
+}
+
+// The cursor sits on a character instead of between two, so moving it never
+// shifts the text.
+func TestInputCursorDoesNotShiftText(t *testing.T) {
+	in := newInput("abc")
+	for pos := 0; pos <= 3; pos++ {
+		in.pos = pos
+		plain := ansi.Strip(in.view())
+		if want := "abc"; pos < 3 && plain != want || pos == 3 && plain != want+" " {
+			t.Errorf("pos %d: %q", pos, plain)
 		}
 	}
 }

@@ -28,7 +28,11 @@ func TestMain(m *testing.M) {
 	browseMDNS = func(context.Context) []netHost { return nil } // nor the network
 	browseWSD = func(context.Context) []netHost { return nil }
 	browseNetBIOS = func(context.Context) []netHost { return nil }
+	browseTailscale = func(context.Context) []netHost { return nil }
+	hasTailscale = func() bool { return false }
 	netbiosName = func(context.Context, string) string { return "" }
+	lookupAddr = func(string) string { return "" }
+	remoteSpace = func(place) (int64, int64, bool) { return 0, 0, false }
 	ufwConf = filepath.Join(dir, "no-ufw.conf") // nor the firewall or package manager
 	localLAN = func() string { return "" }
 	packageManager = func() string { return "" }

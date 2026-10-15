@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"image"
 	"io"
 	"os"
 	"path/filepath"
@@ -32,6 +33,7 @@ const (
 	kindAudio
 	kindArchive
 	kindMarkdown // rendered with glamour, which is too slow for the UI goroutine
+	kindDoc      // Word, Excel, PowerPoint, OpenDocument and RTF: their text
 )
 
 // Async kinds shell out to helper tools or decode large files, so they are
@@ -71,6 +73,8 @@ func classify(e entry) previewKind {
 		return kindArchive
 	case markdownExts[ext]:
 		return kindMarkdown
+	case docExts[ext] || peExts[ext] || ext == ".msi":
+		return kindDoc
 	}
 	return kindText
 }
@@ -85,6 +89,7 @@ type previewOpts struct {
 	cellW, cellH int
 	bg           lipgloss.Color
 	syn          syntax
+	videoPlay    string // config.VideoPlay
 }
 
 // preview is the rendered content of the right-hand pane.
@@ -93,8 +98,9 @@ type preview struct {
 	title   string
 	meta    string
 	lines   []string
-	img     *imgSeq    // out-of-band image (sixel/kitty) drawn over the pane
-	anim    *animation // a playing GIF: img or lines is its current frame
+	img     *imgSeq      // out-of-band image (sixel/kitty) drawn over the pane
+	anim    *animation   // a playing GIF: img or lines is its current frame
+	video   *videoPlayer // a video that can play: img or lines is its current frame
 	frame   int
 	loading bool
 	blocks  bool // lines are a half-block picture, not text
@@ -119,8 +125,17 @@ func buildPreview(dir string, e entry, o previewOpts) preview {
 	kind := classify(e)
 	switch kind {
 	case kindDir:
-		return dirPreview(p, path, o)
-	case kindImage, kindPDF, kindVideo:
+		p = dirPreview(p, path, o)
+		if strings.EqualFold(filepath.Ext(e.name), ".app") {
+			if app := appLines(path); app != nil {
+				p.meta = "Mac app"
+				p.lines = append(fitLines(app, o, len(app)), p.lines...)
+			}
+		}
+		return p
+	case kindVideo:
+		return videoPreview(p, path, e, o)
+	case kindImage, kindPDF:
 		if kind == kindImage && strings.EqualFold(filepath.Ext(e.name), ".gif") {
 			return gifPreview(p, path, e, o)
 		}
@@ -133,6 +148,8 @@ func buildPreview(dir string, e entry, o previewOpts) preview {
 		}
 	case kindAudio:
 		return audioPreview(p, path, e, o)
+	case kindDoc:
+		return docPreview(p, path, e, o)
 	case kindMarkdown:
 		if !o.mdSource && o.line == 0 { // a line to show means source view: rendered lines don't map back
 			return markdownPreview(p, path, e, o)
@@ -167,11 +184,12 @@ func dirPreview(p preview, path string, o previewOpts) preview {
 
 func imagePreview(p preview, path string, e entry, kind previewKind, o previewOpts) preview {
 	p.meta = humanSize(e.size)
-	var info []string
-	if kind == kindVideo {
-		p.meta, info = videoInfo(path, e)
-	}
 	img, w, h, err := loadImage(path, kind)
+	return stillPreview(p, img, w, h, err, kind, e, o, nil)
+}
+
+// stillPreview shows a decoded picture; info lines go above an error.
+func stillPreview(p preview, img image.Image, w, h int, err error, kind previewKind, e entry, o previewOpts, info []string) preview {
 	if err != nil || img == nil {
 		msg := "cannot preview"
 		if err != nil {
@@ -197,33 +215,45 @@ func imagePreview(p preview, path string, e entry, kind previewKind, o previewOp
 	return p
 }
 
-// videoInfo describes a video for the pane header ("1920×1080 · 2:34 · h264
-// · 12 MiB") and, for when there is no thumbnail, as lines. Without ffprobe
-// it is just the size.
-func videoInfo(path string, e entry) (string, []string) {
-	size := humanSize(e.size)
+// videoMeta is what ffprobe says about a video (zero values: unknown).
+type videoMeta struct {
+	w, h  int
+	secs  float64
+	codec string
+}
+
+func probeVideo(path string) videoMeta {
+	var vm videoMeta
 	out, err := run("ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
 		"stream=width,height,codec_name:format=duration", "-of", "default=noprint_wrappers=1", path)
 	if err != nil {
-		return size, nil
+		return vm
 	}
-	var w, h int
-	var dur, codec string
 	for _, l := range strings.Split(strings.TrimSpace(string(out)), "\n") {
 		k, v, _ := strings.Cut(l, "=")
 		switch k {
 		case "width":
-			fmt.Sscanf(v, "%d", &w)
+			fmt.Sscanf(v, "%d", &vm.w)
 		case "height":
-			fmt.Sscanf(v, "%d", &h)
+			fmt.Sscanf(v, "%d", &vm.h)
 		case "codec_name":
-			codec = sanitize(v)
+			vm.codec = sanitize(v)
 		case "duration":
-			var secs float64
-			if _, err := fmt.Sscanf(v, "%f", &secs); err == nil {
-				dur = clock(secs)
-			}
+			fmt.Sscanf(v, "%f", &vm.secs)
 		}
+	}
+	return vm
+}
+
+// videoInfo describes a video for the pane header ("1920×1080 · 2:34 · h264
+// · 12 MiB") and, for when there is no picture, as lines. Without ffprobe
+// it is just the size.
+func videoInfo(vm videoMeta, e entry) (string, []string) {
+	size := humanSize(e.size)
+	w, h, codec := vm.w, vm.h, vm.codec
+	dur := ""
+	if vm.secs > 0 {
+		dur = clock(vm.secs)
 	}
 	var parts, lines []string
 	add := func(label, v string) {
@@ -303,6 +333,26 @@ func textPreview(p preview, path string, e entry, o previewOpts) preview {
 		p.lines = []string{"  (empty file)"}
 		return p
 	}
+	if bytes.HasPrefix(buf, bplistMagic) {
+		p.meta = "binary plist · " + humanSize(e.size)
+		lines, err := plistPreview(path)
+		if err != nil {
+			lines = []string{"  " + errText(err)}
+		}
+		p.lines = fitLines(lines, o, previewMaxLines)
+		return p
+	}
+	if strings.EqualFold(filepath.Ext(e.name), ".lnk") {
+		if lines, err := lnkPreview(path); err == nil {
+			p.meta = "shortcut · " + humanSize(e.size)
+			p.lines = fitLines(lines, o, previewMaxLines)
+			return p
+		}
+	}
+	enc := ""
+	if text, ok := utf16Text(buf); ok {
+		buf, enc = []byte(text), " · UTF-16"
+	}
 	if bytes.IndexByte(buf, 0) >= 0 {
 		p.lines = []string{"  binary file", "  " + humanSize(e.size)}
 		if out, err := run("file", "-b", path); err == nil {
@@ -335,6 +385,7 @@ func textPreview(p preview, path string, e entry, o previewOpts) preview {
 		joined = hl
 		p.meta = lang + " · " + humanSize(e.size)
 	}
+	p.meta += enc
 	var starts []int
 	p.lines, starts = fitLinesMap(strings.Split(joined, "\n"), o, previewMaxLines)
 	p.src, p.segs = raw, segmentsOf(p.lines, starts, expanded)
@@ -406,12 +457,13 @@ func fitLinesMap(src []string, o previewOpts, limit int) ([]string, []int) {
 // sanitize drops control characters (notably ESC) so file content can never
 // inject terminal escape sequences; tabs are kept for expandTabs.
 func sanitize(s string) string {
-	return strings.Map(func(r rune) rune {
+	s = strings.Map(func(r rune) rune {
 		if r == '\t' || (r >= 0x20 && r != 0x7f && !(r >= 0x80 && r < 0xa0)) {
 			return r
 		}
 		return -1
 	}, s)
+	return splitAm.Replace(s)
 }
 
 func expandTabs(s string) string {

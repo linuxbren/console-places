@@ -26,11 +26,16 @@ const (
 	kindFile      entryKind = iota
 	kindSeparator           // the thin line above the Trash row
 	kindTrashLink           // the pinned "Trash" row in the home folder
+	kindPlace               // a bookmark, drive or network row below the files (listplaces.go)
+	kindNote                // "(empty)" over the places rows of an empty folder
 )
 
 const trashIcon = "" // nf-fa-trash (Nerd Fonts, which Omarchy ships)
 
 func (e entry) virtual() bool { return e.kind != kindFile }
+
+// standable: the cursor can rest on it (not a separator).
+func (e entry) standable() bool { return e.kind != kindSeparator && e.kind != kindNote }
 
 // trashMeta is what a .trashinfo file says about a trashed item.
 type trashMeta struct {
@@ -86,8 +91,12 @@ func (m model) showsTrashLink() bool {
 }
 
 // trashRows are the separator and Trash row appended to the home listing,
-// unless a filter is active that "trash" doesn't match.
+// unless a filter is active that "trash" doesn't match; with places in the
+// list, every folder's places rows.
 func (m model) trashRows() []entry {
+	if m.listsPlaces() {
+		return m.placeRows()
+	}
 	if !m.showsTrashLink() || (m.filter != "" && !strings.Contains("trash", strings.ToLower(m.filter))) {
 		return nil
 	}

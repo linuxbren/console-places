@@ -27,11 +27,13 @@ const (
 	mFind
 	mGrep
 	mSettings
+	mBulk
 )
 
 type menuItem struct {
 	label, suffix, value string
 	muted                bool
+	section              string // a heading is drawn where this changes
 }
 
 type modal struct {
@@ -47,12 +49,15 @@ type modal struct {
 	targets []string // absolute paths the modal acts on
 	prev    string   // filter value to restore on esc
 	perm    *permEdit
-	secret  bool // the input is a password: shown as dots
-	guest   bool // a connection prompt that can switch to guest (anonymous)
+	props   []entry    // what properties describe
+	count   *sizeCount // their folder sizes, counted in the background
+	secret  bool       // the input is a password: shown as dots
+	guest   bool       // a connection prompt that can switch to guest (anonymous)
 	find    *findState
 	grep    *grepState
 	pal     *paletteState
 	places  []place // the places menu's rows, beside items
+	bulk    *bulkState
 }
 
 // ---- text input --------------------------------------------------------
@@ -113,8 +118,17 @@ func (t *textInput) handle(msg tea.KeyMsg) bool {
 	return true
 }
 
-func (t textInput) view() string {
-	return string(t.r[:t.pos]) + "▏" + string(t.r[t.pos:])
+func (t textInput) view() string { return cursorText(t.r, t.pos) }
+
+// cursorText shows r with a block cursor at pos: the character under it in
+// reverse video (a space past the end), so the text never shifts as the
+// cursor moves. Only reverse is toggled, keeping the row's own colours.
+func cursorText(r []rune, pos int) string {
+	under, rest := " ", ""
+	if pos < len(r) {
+		under, rest = string(r[pos]), string(r[pos+1:])
+	}
+	return string(r[:pos]) + "\x1b[7m" + under + "\x1b[27m" + rest
 }
 
 // ---- opening modals ----------------------------------------------------
@@ -151,12 +165,27 @@ func (m *model) openConfirm(purpose, title string, lines []string, targets []str
 	m.modal = &modal{kind: mConfirm, purpose: purpose, title: title, lines: lines, targets: targets}
 }
 
-func (m *model) openProps() {
+// openProps shows properties; folder sizes are counted in the background
+// (dusize.go), so it returns the command that keeps the numbers current.
+func (m *model) openProps() tea.Cmd {
 	ts := m.targets()
 	if len(ts) == 0 {
-		return
+		return nil
 	}
-	m.modal = &modal{kind: mInfo, purpose: "props", title: "properties", lines: m.propLines(ts)}
+	md := &modal{kind: mInfo, purpose: "props", title: "properties", props: ts}
+	if len(ts) > 1 || ts[0].isDir {
+		var paths []string
+		for _, e := range ts {
+			paths = append(paths, filepath.Join(m.cwd, e.name))
+		}
+		md.count = countSize(paths)
+	}
+	md.lines = m.propLines(ts, md.count)
+	m.modal = md
+	if md.count == nil {
+		return nil
+	}
+	return md.count.tick()
 }
 
 func (m *model) openWith() {
@@ -177,23 +206,18 @@ func (m *model) openWith() {
 	m.modal = &modal{kind: mMenu, purpose: "openwith", title: "open " + e.name + " with", items: items, targets: []string{path}}
 }
 
-func (m model) propLines(ts []entry) []string {
+func (m model) propLines(ts []entry, c *sizeCount) []string {
 	if len(ts) > 1 {
-		var total int64
 		dirs := 0
 		for _, e := range ts {
 			if e.isDir {
 				dirs++
-				total += dirSize(filepath.Join(m.cwd, e.name))
-			} else {
-				total += e.size
 			}
 		}
-		return []string{
+		return append([]string{
 			fmt.Sprintf("%d items selected", len(ts)),
 			fmt.Sprintf("%d folders, %d files", dirs, len(ts)-dirs),
-			"Total size   " + humanSize(total),
-		}
+		}, c.sizeLines("Total size")...)
 	}
 	e := ts[0]
 	path := filepath.Join(m.cwd, e.name)
@@ -201,11 +225,13 @@ func (m model) propLines(ts []entry) []string {
 	if target, err := os.Readlink(path); err == nil {
 		lines = append(lines, "Link to      "+target)
 	}
-	if e.isDir {
-		size, n := dirStats(path)
-		lines = append(lines, "Type         folder", fmt.Sprintf("Contains     %s", plural(n, "item")), "Size         "+humanSize(size))
+	if e.isDir && c != nil {
+		lines = append(append(lines, "Type         folder"), c.sizeLines("Size")...)
 	} else {
-		lines = append(lines, "Type         "+mimeOf(path), "Size         "+fmt.Sprintf("%s (%d bytes)", humanSize(e.size), e.size))
+		lines = append(lines, "Type         "+mimeOf(path), fmt.Sprintf("Size         %s (%s bytes)", humanSize(e.size), groupDigits(e.size)))
+		if st, ok := statOf(path); ok {
+			lines = append(lines, "On disk      "+humanSize(st.Blocks*512))
+		}
 	}
 	lines = append(lines, fmt.Sprintf("Permissions  %s (%04o)", e.mode, e.mode.Perm()))
 	if st, ok := statOf(path); ok {
@@ -236,26 +262,6 @@ func lookupIDs(st *syscall.Stat_t) (owner, group string) {
 	}
 	return
 }
-
-func dirStats(path string) (size int64, n int) {
-	const limit = 200000
-	_ = filepath.WalkDir(path, func(p string, d os.DirEntry, err error) error {
-		if err != nil || p == path {
-			return nil
-		}
-		n++
-		if info, ierr := d.Info(); ierr == nil && !d.IsDir() {
-			size += info.Size()
-		}
-		if n >= limit {
-			return filepath.SkipAll
-		}
-		return nil
-	})
-	return
-}
-
-func dirSize(path string) int64 { s, _ := dirStats(path); return s }
 
 func mimeOf(path string) string {
 	out, err := exec.Command("gio", "info", "-a", "standard::content-type", path).Output()
@@ -317,6 +323,8 @@ func (m model) handleModalKey(msg tea.KeyMsg) (model, tea.Cmd) {
 		return m.handleGrepKey(md, msg)
 	case mSettings:
 		return m.handleSettingsKey(md, key)
+	case mBulk:
+		return m.handleBulkKey(md, msg)
 	case mInput:
 		switch key {
 		case "ctrl+s":
@@ -480,6 +488,8 @@ func (m model) runConfirmed(md *modal) (model, tea.Cmd) {
 		return m, m.quit()
 	case "allowfw":
 		return m, m.allowDiscovery(md.targets[0])
+	case "removefw":
+		return m, m.removeDiscovery()
 	case "install":
 		return m, m.install(md.targets[0])
 	case "canceljob", "quitjob":
@@ -522,7 +532,7 @@ func (m model) modalOverlay() tideui.Overlay {
 		}
 		text := md.in.view()
 		if md.secret {
-			text = strings.Repeat("•", md.in.pos) + "▏" + strings.Repeat("•", len(md.in.r)-md.in.pos)
+			text = cursorText([]rune(strings.Repeat("•", len(md.in.r))), md.in.pos)
 		}
 		h := []tideui.SoftHint{{Key: "enter", Label: "confirm"}, {Key: "esc", Label: "cancel"}}
 		if md.guest {
@@ -559,6 +569,8 @@ func (m model) modalOverlay() tideui.Overlay {
 		body = append(body, m.grepBody(md, inner)...)
 	case mSettings:
 		body = append(body, m.settingsBody(md, inner)...)
+	case mBulk:
+		body = append(body, m.bulkBody(md, inner)...)
 	case mMenu:
 		if md.purpose == "places" {
 			body = append(body, m.placesBody(md, inner)...)
@@ -572,6 +584,9 @@ func (m model) modalOverlay() tideui.Overlay {
 		first := max(0, min(md.sel-rows/2, len(md.items)-rows))
 		for i := first; i < min(len(md.items), first+rows); i++ {
 			it := md.items[i]
+			if it.section != "" && (i == first || md.items[i-1].section != it.section) {
+				body = append(body, r.Styles.Badge.Render(" "+it.section))
+			}
 			body = append(body, r.RenderSoftRow(tideui.SoftRow{Text: it.label, Suffix: it.suffix, Selected: i == md.sel, Muted: it.muted}, inner))
 		}
 		h := []tideui.SoftHint{{Key: "enter", Label: "open"}, {Key: "esc", Label: "close"}}

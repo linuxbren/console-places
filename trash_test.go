@@ -28,9 +28,15 @@ func names(es []entry) string {
 	for _, e := range es {
 		switch e.kind {
 		case kindSeparator:
-			out = append(out, "---")
+			out = append(out, strings.TrimSpace("--- "+e.name))
+		case kindPlace:
+			out = append(out, "<"+e.name+">")
 		case kindTrashLink:
 			out = append(out, "[Trash]")
+		case kindNote:
+			if e.name != "" { // a blank line
+				out = append(out, e.name)
+			}
 		default:
 			out = append(out, e.name)
 		}

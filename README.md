@@ -40,8 +40,12 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
 
 - **Three panes** — parent, current folder, and a preview (yazi-style). `shift+←/→` resizes the preview, `p` hides it.
 - **A preview that understands your files** — real inline images (sixel in foot/wezterm/mlterm, kitty graphics in
-  kitty/ghostty, half-block fallback anywhere else), animated GIFs, PDF first pages, video thumbnails with length, resolution and codec, syntax-highlighted code
+  kitty/ghostty, half-block fallback anywhere else), animated GIFs, PDF first pages, videos that play (muted, after a moment on the file; `alt+p` plays or pauses) with length, resolution and codec, syntax-highlighted code
   in your Omarchy colors, rendered markdown (`m` shows the source), pretty-printed JSON, archive contents, audio tags, folder contents.
+  From Windows and Mac shares too: Word, Excel, PowerPoint and OpenDocument files and RTF as their text
+  (a spreadsheet's first sheet as a table), binary plists, UTF-16 text (`.reg`, `.inf`, `.strings`…),
+  `.lnk` shortcuts (where they point), `.exe`/`.dll` details (product, company, version) and a Mac
+  `.app`'s name and version.
 - **Word-wrapped preview** — long lines wrap at word boundaries; `w` toggles truncation.
 - **Copy text from the preview** — drag over the preview to select; letting go copies it to the clipboard
   as the file's own text (tabs kept, wrapped lines joined). The selection stays inside the preview pane;
@@ -51,13 +55,14 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
   settings without a key (sort mode, image previews), and your recent actions come first.
 - **Follows your Omarchy theme** — live, no restart. `T` opens a theme picker.
 - **A modern file manager's toolbox** — select, copy / cut / paste (the system clipboard gets file lists
-  for file managers and paths for terminals and editors), trash with **undo**, rename, new file/folder, properties, permissions (chmod), open with…, places and
+  for file managers and paths for terminals and editors), trash with **undo**, rename (several at once: a template like `Holiday {n:2}` or find & replace, with a live preview), new file/folder, properties (folder sizes counted in the background: size and space on disk), permissions (chmod), open with…, places and
   bookmarks, back/forward history, filter, fuzzy find across subfolders, search inside files (ripgrep when installed; `alt+r` for regex), sort, terminal here, mouse support.
 - **Tabs** — `ctrl+t` opens a tab on the current folder, `ctrl+w` closes it, `tab`/`shift+tab` or `1`…`9`
-  switch; each tab keeps its own folder, selection and history. Tabs are reopened next time, with the
-  folder you start in as the active one (or only when no folder is given, or never — see settings).
+  switch; each tab keeps its own folder, selection and history. Tabs are reopened next time on the tab
+  you were last in; started with a folder (`tidefiles ~/Music`), that folder's tab is active (added if
+  none is open there). Settings can restore tabs only when no folder is given, or never.
 - **Settings page** — `S` lists every preference (tabs at startup, theme, hidden files, sort, preview
-  pane, word wrap, markdown, image previews, updates); `←`/`→` change one, and it's saved straight away.
+  pane, word wrap, markdown, image previews, places in the file list, video previews, updates); `←`/`→` change one, and it's saved straight away.
 - **Keeps itself up to date** — release binaries check for a new version once a day, install it after
   verifying its checksum, and ask before restarting (tabs come back), listing what's new since your
   version so you can jump straight in. `U` does it by hand; see
@@ -74,6 +79,12 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
   `alt+t` jumps there). The trash shows where each item came from and when it was deleted; `r` puts
   it back (as `name (2)` if something is there now), `D` deletes it forever, `E` empties the trash.
 - **Places: bookmarks, drives and network** — `b` is the sidebar, in sections like Nautilus':
+  - **Places in the file list** (opt-in) — Settings (`S`) → *Places in the file list* puts your
+    bookmarks (or bookmarks, drives and network) and the Trash below the files in every folder,
+    set apart by a gap and coloured section names. Down stops at the last file (held down, it stays
+    there); one more press goes into them. *Browse network…* and *Connect to server…* end the
+    Network section. `enter` opens, mounts or connects; `d` unmounts a drive, disconnects a
+    network location, removes a bookmark or forgets a saved server (never touching files).
   - **Bookmarks** — `B` bookmarks the folder you're in (`B` again removes it); bookmarked folders
     show a `★`.
   - **Drives** — every drive and partition that isn't part of the running system, mounted or not,
@@ -84,9 +95,12 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
     ssh), `nfs://`, `ftp://`, `dav://`; `\\pc\share` and `user@host:/path` work too. Passwords and
     other questions are asked inside tidefiles; `ctrl+s` at the password saves it in your keyring,
     where Nautilus finds it too. **Browse network…** finds computers that share files (mDNS,
-    WS-Discovery, NetBIOS) and lists a server's shares. Servers you connect to stay listed; `u`
+    WS-Discovery, NetBIOS) and lists a server's shares; with Tailscale installed, **Tailscale…**
+    (under Network) lists your tailnet's online computers at once (by MagicDNS name, over SFTP or
+    SMB), and Browse network… adds them under their own heading. Servers you connect to stay listed; `u`
     disconnects, `d` forgets one. Connections go through gvfs, as in Nautilus, so they're
-    shared with it.
+    shared with it. A connected computer's preview shows its address, the protocol, who you're signed
+    in as and its free space, and folders on it are titled `computer: /path`.
   - **System mounts (root)** — for power users, `ctrl+r` in Connect mounts an SMB or NFS share with
     the kernel's own client (`mount.cifs` / `mount.nfs`) at a folder like `/mnt/photos`, via pkexec
     or sudo: faster, and visible to every program. The password goes in a credentials file that's
@@ -100,9 +114,12 @@ system mounts need `cifs-utils` or `nfs-utils`. When one is missing, tidefiles s
 and offers to install it with your package manager (as root, after you say yes). If your firewall
 (ufw) drops the answers Windows PCs send while browsing, **Browse network…** explains and offers
 (`f`) to allow just those: UDP from your own network, from the discovery ports 3702 and 137.
+Once they're in, `f` in the same place offers to remove them again (only the rules tidefiles
+added, found by their "tidefiles discovery" label).
 
 Image previews use `imagemagick` (jpeg/svg/heic/…), `poppler` (PDF), `ffmpegthumbnailer` (video),
-`libarchive` (archives) and `ffmpeg` (audio tags) when installed. Set `TIDEFILES_IMAGES=blocks|sixel|kitty`
+`libarchive` (archives) and `ffmpeg` (playing videos, audio tags) when installed. Settings (`S`) →
+*Video previews* chooses: play after a moment (default), play with `alt+p` only, or a still frame. Set `TIDEFILES_IMAGES=blocks|sixel|kitty`
 to override terminal detection.
 
 ## Install
@@ -184,7 +201,7 @@ Settings (theme, hidden files, wrap, sort, bookmarks, servers you connected to) 
 ## Keys
 
 Arrow keys first; vim keys work too. Press `?` for every action: type to find one, `enter` runs it.
-`space` select · `SUPER+C`/`X`/`V` copy/cut/paste (plain `c`/`x`/`v` work too) · `d` trash · `ctrl+z` undo · `F2` rename ·
+`space` select · `SUPER+C`/`X`/`V` copy/cut/paste (plain `c`/`x`/`v` work too) · `d` trash · `ctrl+z` undo · `F2` rename (several selected: bulk rename) ·
 `n`/`N` new file/folder · `/` filter · `f` find · `F` search inside files · `X` extract · `Z` compress · `ctrl+t`/`ctrl+w` tabs · `ctrl+n` new window · `alt+t` trash · `s` sort · `S` settings · `b` places, drives, network · `B` bookmark · `i` properties · `P` permissions · `o` open with · `T` theme. Drag over the preview to copy text.
 
 `SUPER+C` needs a one-time Hyprland snippet on Omarchy — see [Install](#install).

@@ -16,16 +16,21 @@ type config struct {
 	Bookmarks  []string `json:"bookmarks,omitempty"`
 	Servers    []string `json:"servers,omitempty"` // network locations connected to, most recent first
 
+	PlacesInList string `json:"places_in_list,omitempty"` // "" off, "bookmarks" or "all": rows below every folder's files
+
 	PreviewRatio float64 `json:"preview_ratio,omitempty"` // share of the width given to the preview
 	HidePreview  bool    `json:"hide_preview,omitempty"`
 
 	MarkdownSource bool `json:"markdown_source,omitempty"` // preview markdown as source, not rendered
 
 	Tabs        []string `json:"tabs,omitempty"`          // tab folders at the last quit
+	ActiveTab   int      `json:"active_tab,omitempty"`    // the tab that was active then
 	TabsOnStart string   `json:"tabs_on_start,omitempty"` // "" restore, "nofolder" only without a folder argument, "never"
 
 	ImageMode string   `json:"image_mode,omitempty"` // "", kitty, sixel or blocks ("" detects)
 	Recent    []string `json:"recent,omitempty"`     // help-palette actions, most recent first
+
+	VideoPlay string `json:"video_play,omitempty"` // "" play after a moment, "key" with alt+p only, "off" still frame
 
 	Updates       string `json:"updates,omitempty"`        // "" install automatically, "notify", "off"
 	UpdateChecked int64  `json:"update_checked,omitempty"` // unix time of the last check for a new release

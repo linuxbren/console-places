@@ -54,23 +54,30 @@ type model struct {
 	parent       []entry
 	parentCursor int
 
-	cursors   map[string]string // dir -> last selected name, restored on re-entry
-	selected  map[string]bool   // names in cwd
-	clip      clipboard
-	titleDir  string // folder the window title was last set for
-	jump      jumpTarget
-	job       *job     // the running background job, if any
-	arc       *arcView // the archive being browsed, if any
-	quitting  bool     // quit once the running job has stopped
-	upd       updateState
-	restart   bool                 // quit, then restart into an installed update
-	tabs      []tabState           // all tabs; the fields above describe tabs[tab]
-	trashN    int                  // items in the trash, for the home folder's Trash row
-	trashMeta map[string]trashMeta // origins and dates, in the trash view
-	tab       int
-	undo      []undoItem
-	conn      *connection // the network location being connected to
-	rm        *rootMount  // a system mount being set up
+	cursors     map[string]string // dir -> last selected name, restored on re-entry
+	selected    map[string]bool   // names in cwd
+	clip        clipboard
+	titleDir    string // folder the window title was last set for
+	jump        jumpTarget
+	job         *job     // the running background job, if any
+	arc         *arcView // the archive being browsed, if any
+	quitting    bool     // quit once the running job has stopped
+	upd         updateState
+	restart     bool                 // quit, then restart into an installed update
+	tabs        []tabState           // all tabs; the fields above describe tabs[tab]
+	trashN      int                  // items in the trash, for the home folder's Trash row
+	trashMeta   map[string]trashMeta // origins and dates, in the trash view
+	tab         int
+	undo        []undoItem
+	conn        *connection  // the network location being connected to
+	forceDisc   string       // a busy network location: disconnecting it again forces it
+	rm          *rootMount   // a system mount being set up
+	vid         *videoPlayer // the video playing in the preview, if any
+	scan        *placeScan   // drives and network locations, for places in the list
+	scannedAt   time.Time
+	scanning    bool
+	rescanAfter bool      // a forced rescan came in while scanning
+	bumped      time.Time // when down last stopped at the last file (see moveDown)
 
 	hist []string
 	hi   int
@@ -167,6 +174,9 @@ func (m *model) setRenderer(t tideui.Theme) {
 
 func (m model) Init() tea.Cmd {
 	cmds := []tea.Cmd{writeTerm(setTerminalBg(m.theme)), tick()}
+	if m.cfg.PlacesInList == placesListAll {
+		cmds = append(cmds, scanPlacesCmd())
+	}
 	if m.updateDue(time.Now()) {
 		cmds = append(cmds, checkUpdate(false))
 	}
@@ -268,7 +278,7 @@ func (m *model) reload(focus string) {
 	}
 	m.all = ents
 	sortEntries(m.all, m.cfg.Sort, m.cfg.SortDesc)
-	if m.showsTrashLink() {
+	if m.showsTrashLink() || m.listsPlaces() {
 		m.trashN = trashCount()
 	}
 	if m.inTrash() {
@@ -318,19 +328,28 @@ func (m *model) applyView(focus string) {
 			m.entries = append(m.entries, e)
 		}
 	}
-	m.entries = append(m.entries, m.trashRows()...) // pinned below everything, whatever the sort
+	m.entries = append(m.entries, m.tailRows(len(m.entries))...) // pinned below everything, whatever the sort
 	m.cursor = max(0, min(m.cursor, len(m.entries)-1))
 	for i, e := range m.entries {
-		if focus != "" && e.name == focus && e.kind != kindSeparator {
+		if focus != "" && e.name == focus && e.standable() {
 			m.cursor = i
 			break
 		}
 	}
-	if m.cursor < len(m.entries) && m.entries[m.cursor].kind == kindSeparator {
-		m.cursor-- // never rest on the separator (it always has a row above it)
-	}
+	m.settle()
 	m.fixOffset()
 	m.pvKey = ""
+}
+
+// settle moves the cursor off a separator: up, or down when there's
+// nothing to stand on above.
+func (m *model) settle() {
+	for m.cursor > 0 && m.cursor < len(m.entries) && !m.entries[m.cursor].standable() {
+		m.cursor--
+	}
+	for m.cursor < len(m.entries)-1 && !m.entries[m.cursor].standable() {
+		m.cursor++
+	}
 }
 
 func (m *model) setMsg(text string, isErr bool) { m.msg, m.msgErr = text, isErr }
@@ -347,15 +366,20 @@ func (m *model) fixOffset() {
 }
 
 func (m *model) move(delta int) {
+	m.bumped = time.Time{}
 	if len(m.entries) == 0 {
 		return
 	}
 	m.cursor = max(0, min(len(m.entries)-1, m.cursor+delta))
-	if m.entries[m.cursor].kind == kindSeparator { // not a row you can stand on
-		if delta < 0 || m.cursor == len(m.entries)-1 {
-			m.cursor = max(0, m.cursor-1)
+	step := 1 // past separators, the way it was going
+	if delta < 0 {
+		step = -1
+	}
+	for n := 0; n < 2*len(m.entries) && !m.entries[m.cursor].standable(); n++ {
+		if n := m.cursor + step; n >= 0 && n < len(m.entries) {
+			m.cursor = n
 		} else {
-			m.cursor++
+			step = -step
 		}
 	}
 	m.fixOffset()
@@ -379,6 +403,7 @@ func (m *model) navigate(dir, focus string, record bool) {
 		m.hi = len(m.hist) - 1
 	}
 	m.cwd, m.offset, m.cursor, m.filter = dir, 0, 0, ""
+	m.bumped = time.Time{}
 	m.selected = map[string]bool{}
 	m.entries = nil
 	m.reload(focus)
@@ -401,7 +426,7 @@ func (m model) previewOpts() previewOpts {
 		line = m.jump.line
 	}
 	return previewOpts{line: line, width: inner[2], rows: rows, wrap: m.cfg.Wrap, hidden: m.cfg.ShowHidden, mdSource: m.cfg.MarkdownSource,
-		proto: m.proto, cellW: m.cellW, cellH: m.cellH, bg: m.theme.Bg, syn: m.syn}
+		proto: m.proto, cellW: m.cellW, cellH: m.cellH, bg: m.theme.Bg, syn: m.syn, videoPlay: m.cfg.VideoPlay}
 }
 
 // refreshPreview makes the preview pane match the selection. Cheap kinds build
@@ -422,6 +447,16 @@ func (m *model) refreshPreview() tea.Cmd {
 				m.pv.meta, m.pv.lines = "empty", []string{"  (empty)"}
 			}
 			m.pvKey, m.pvPath, m.pvScroll = "trash-link", "", 0
+		}
+		return nil
+	}
+	if ok && e.kind == kindPlace {
+		if key := "place|" + e.name + "|" + e.placeSig(); m.pvKey != key {
+			m.pv = m.placePreview(*e.pl)
+			m.pvKey, m.pvPath, m.pvScroll = key, "", 0
+			if e.pl.kind == placeNet {
+				return netInfoCmd(key, *e.pl)
+			}
 		}
 		return nil
 	}
@@ -530,19 +565,40 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case animTickMsg:
 		cmd = m.stepAnim(msg)
+	case videoFrameMsg:
+		cmd = m.onVideoFrame(msg)
+	case videoAutoMsg:
+		cmd = m.onVideoAuto(msg)
+	case sizeTickMsg:
+		cmd = m.onSizeTick(msg)
 	case connectMsg:
-		cmd = m.onConnect(msg)
+		cmd = tea.Batch(m.onConnect(msg), m.rescanPlaces(true))
 	case firewallMsg:
 		cmd = m.onFirewall(msg)
 	case installMsg:
 		m.onInstall(msg)
 	case rootDoneMsg:
 		m.onRootDone(msg)
+		cmd = m.rescanPlaces(true)
 	case discoverMsg:
 		m.onDiscover(msg)
 	case sharesMsg:
 		m.onShares(msg)
+	case gfxRedrawMsg:
+		if m.gfx != nil {
+			m.gfx.forget()
+			m.drawGraphicsNow()
+		}
+	case netInfoMsg:
+		if msg.key == m.pvKey {
+			o := m.previewOpts()
+			o.wrap = false
+			m.pv.lines = fitLines(msg.lines, o, len(msg.lines))
+		}
+	case placesScannedMsg:
+		cmd = m.onPlacesScanned(msg)
 	case placeMsg:
+		cmd = m.rescanPlaces(true)
 		if msg.cause != nil && m.offerInstall(msg.cause) {
 			break
 		}
@@ -552,6 +608,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.reload(m.curName())
 		}
 		m.setMsg(msg.text, msg.err)
+		m.forceDisc = msg.busy
 	case opDoneMsg:
 		m.finishOp(msg.res)
 	case findBatchMsg:
@@ -593,7 +650,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.reload(m.curName())
 	case tickMsg:
-		cmd = tick()
+		cmd = tea.Batch(tick(), m.rescanPlaces(false))
 		if m.themeMode == themeOmarchy && omarchy.Signature() != m.sig {
 			m.applyTheme()
 			cmd = tea.Batch(cmd, writeTerm(setTerminalBg(m.theme)))
@@ -613,11 +670,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m, cmd = m.handleKey(msg)
 		}
 	}
+	if m.cfg.PlacesInList != placesListOff {
+		m.refreshPlaceRows() // bookmarks and servers change from places (b) too
+	}
 	if m.cwd != m.titleDir {
 		m.titleDir = m.cwd
 		cmd = tea.Batch(cmd, tea.SetWindowTitle(windowTitle(m.cwd)))
 	}
-	return m, tea.Batch(cmd, m.refreshPreview())
+	cmd = tea.Batch(cmd, m.refreshPreview(), m.syncVideo())
+	return m, cmd
 }
 
 func (m *model) finishOp(res opResult) {
@@ -677,8 +738,12 @@ func (m model) guard(act action) (model, tea.Cmd, bool) {
 			return m, nil, true
 		}
 	}
+	if cur, ok := m.current(); ok && cur.kind == kindPlace && act == actTrash && len(m.selected) == 0 {
+		cmd := m.dropPlace(*cur.pl)
+		return m, cmd, true
+	}
 	if cur, ok := m.current(); ok && cur.virtual() && onTheFile[act] && (len(m.selected) == 0 || currentOnly[act]) {
-		m.setMsg("Trash is a shortcut, not a file: enter opens it", false)
+		m.setMsg(cur.name+" is a shortcut, not a file: enter "+shortcutAction(cur), false)
 		return m, nil, true
 	}
 	if m.arc != nil && !allowedInArchive[act] {
@@ -726,17 +791,17 @@ func (m model) perform(act action) (model, tea.Cmd) {
 	case actUp:
 		m.move(-1)
 	case actDown:
-		m.move(1)
+		m.moveDown(1)
 	case actTop:
 		m.move(-len(m.entries))
 	case actBottom:
 		m.move(len(m.entries))
 	case actHalfDown:
-		m.move(rows / 2)
+		m.moveDown(rows / 2)
 	case actHalfUp:
 		m.move(-rows / 2)
 	case actPageDown:
-		m.move(rows)
+		m.moveDown(rows)
 	case actPageUp:
 		m.move(-rows)
 	case actParent:
@@ -754,6 +819,8 @@ func (m model) perform(act action) (model, tea.Cmd) {
 		switch {
 		case cur.kind == kindTrashLink:
 			m.openTrash()
+		case cur.kind == kindPlace:
+			return m, m.openPlace(*cur.pl)
 		case m.arc != nil && cur.isDir:
 			m.archiveInto(cur.name)
 		case m.arc != nil:
@@ -810,7 +877,14 @@ func (m model) perform(act action) (model, tea.Cmd) {
 	case actPlaces:
 		m.openPlaces()
 	case actBookmark:
+		if hasCur && cur.kind == kindPlace && cur.pl.bookmark {
+			m.removeBookmark(cur.pl.path)
+			m.setMsg("removed bookmark "+tildePath(cur.pl.path), false)
+			m.refreshPlaceRows()
+			break
+		}
 		m.toggleBookmark()
+		m.refreshPlaceRows()
 	case actSelect:
 		if hasCur {
 			if m.selected[cur.name] {
@@ -901,7 +975,9 @@ func (m model) perform(act action) (model, tea.Cmd) {
 		if m.inTrash() { // in the trash, r restores
 			return m.perform(actRestore)
 		}
-		if hasCur {
+		if ts := m.targets(); len(m.selected) > 1 {
+			m.openBulkRename(ts)
+		} else if hasCur {
 			m.openInput("rename", "rename", "New name for "+cur.name, cur.name, []string{curPath})
 		}
 	case actNewFile:
@@ -939,7 +1015,7 @@ func (m model) perform(act action) (model, tea.Cmd) {
 	case actNewWindow:
 		return m, newWindow(m.cwd)
 	case actProps:
-		m.openProps()
+		return m, m.openProps()
 	case actPerms:
 		m.openPerms()
 	case actOpenWith:
@@ -994,6 +1070,8 @@ func (m model) perform(act action) (model, tea.Cmd) {
 	case actRefresh:
 		m.reload(m.curName())
 		m.setMsg("refreshed", false)
+		redraw := func() tea.Msg { return gfxRedrawMsg{} }                               // the clear erased any image
+		return m, tea.Batch(tea.Sequence(tea.ClearScreen, redraw), m.rescanPlaces(true)) // also repaints a garbled screen
 	case actSettings:
 		m.openSettings()
 	case actTheme:
@@ -1016,6 +1094,8 @@ func (m model) perform(act action) (model, tea.Cmd) {
 		m.clampPreviewScroll()
 	case actScrollUp:
 		m.pvScroll = max(0, m.pvScroll-1)
+	case actPlay:
+		return m, m.togglePlay()
 	}
 	return m, nil
 }
@@ -1119,7 +1199,7 @@ func (m model) handleMouse(msg tea.MouseMsg) (model, tea.Cmd) {
 			if i >= len(m.entries) {
 				break
 			}
-			if m.entries[i].kind == kindSeparator {
+			if !m.entries[i].standable() {
 				break
 			}
 			double := i == m.lastClickRow && time.Since(m.lastClick) < doubleClick
@@ -1138,6 +1218,7 @@ func (m model) handleMouse(msg tea.MouseMsg) (model, tea.Cmd) {
 
 func (m model) quit() tea.Cmd {
 	m.cfg.Tabs = m.tabDirs()
+	m.cfg.ActiveTab = m.tab
 	m.cfg.save()
 	for _, t := range m.tabs {
 		if t.arc != nil {
@@ -1145,6 +1226,9 @@ func (m model) quit() tea.Cmd {
 		}
 	}
 	m.leaveArchive()
+	if m.pv.video != nil {
+		m.pv.video.stop()
+	}
 	m.gfx.set(nil, "")
 	if m.cwdFile != "" {
 		_ = os.WriteFile(m.cwdFile, []byte(m.cwd), 0o600)

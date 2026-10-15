@@ -25,6 +25,7 @@ const (
 	placeServer                   // a saved server, not connected
 	placeConnect                  // "Connect to server…"
 	placeBrowse                   // "Browse network…"
+	placeTailnet                  // "Tailscale…": the tailnet's computers
 )
 
 const (
@@ -78,30 +79,62 @@ func (m model) places() []place {
 	}
 
 	add(place{name: "Computer", path: "/", section: secDrives, info: "/"})
+	sc := scanPlaces()
+	for _, p := range sc.drives {
+		add(p)
+	}
+	for _, p := range sc.nets {
+		add(p)
+	}
+	for _, p := range sc.servers(m.cfg.Servers) {
+		add(p)
+	}
+	add(place{name: "Browse network…", section: secNetwork, kind: placeBrowse, info: "find computers"})
+	if hasTailscale() {
+		add(tailnetPlace)
+	}
+	add(place{name: "Connect to server…", section: secNetwork, kind: placeConnect, info: "smb · sftp · nfs"})
+	return out
+}
+
+// placeScan is what places reads from the system: drives (lsblk, statfs)
+// and connected network locations (gio, /proc/self/mounts). Each lookup
+// can take a moment, so the file list's places rows use a copy made in the
+// background (see listplaces.go).
+type placeScan struct {
+	drives, nets []place
+	connected    map[string]bool // connected URIs, without a trailing slash
+	tailscale    bool            // tailscale is installed
+}
+
+func scanPlaces() placeScan {
+	sc := placeScan{connected: map[string]bool{}, tailscale: hasTailscale()}
 	if devs, err := blockDevices(); err == nil {
 		for _, d := range drives(devs) {
-			add(place{name: d.name, path: d.mount, section: secDrives, kind: placeDrive, drive: d, info: d.info()})
+			sc.drives = append(sc.drives, place{name: d.name, path: d.mount, section: secDrives, kind: placeDrive, drive: d, info: d.info()})
 		}
 	} else {
 		for _, mp := range mountPoints(mountsText()) { // no lsblk: what is mounted
-			add(place{name: filepath.Base(mp), path: mp, section: secDrives, info: tildePath(mp)})
+			sc.drives = append(sc.drives, place{name: filepath.Base(mp), path: mp, section: secDrives, info: tildePath(mp)})
 		}
 	}
-
-	connected := map[string]bool{}
 	for _, nm := range append(gvfsMounts(), systemNetMounts(mountsText())...) {
-		connected[strings.TrimSuffix(nm.uri, "/")] = true
+		sc.connected[strings.TrimSuffix(nm.uri, "/")] = true
 		if nm.path != "" {
-			add(place{name: nm.name, path: nm.path, section: secNetwork, kind: placeNet, net: nm, info: nm.uri})
+			sc.nets = append(sc.nets, place{name: nm.name, path: nm.path, section: secNetwork, kind: placeNet, net: nm, info: nm.uri})
 		}
 	}
-	for _, s := range m.cfg.Servers {
-		if !connected[strings.TrimSuffix(s, "/")] {
-			add(place{name: serverName(s), section: secNetwork, kind: placeServer, uri: s, info: s})
+	return sc
+}
+
+// servers are the saved servers that aren't connected now.
+func (sc placeScan) servers(saved []string) []place {
+	var out []place
+	for _, s := range saved {
+		if !sc.connected[strings.TrimSuffix(s, "/")] {
+			out = append(out, place{name: serverName(s), section: secNetwork, kind: placeServer, uri: s, info: s})
 		}
 	}
-	add(place{name: "Browse network…", section: secNetwork, kind: placeBrowse, info: "find computers"})
-	add(place{name: "Connect to server…", section: secNetwork, kind: placeConnect, info: "smb · sftp · nfs"})
 	return out
 }
 
@@ -115,7 +148,7 @@ func (m *model) openPlacesAt(sel int) {
 	items := make([]menuItem, len(ps))
 	for i, p := range ps {
 		items[i] = menuItem{label: p.name, suffix: p.info, value: p.path,
-			muted: p.missing || p.kind == placeServer || p.kind == placeConnect || p.kind == placeBrowse || (p.kind == placeDrive && p.path == "")}
+			muted: p.missing || p.kind == placeServer || p.kind == placeConnect || p.kind == placeBrowse || p.kind == placeTailnet || (p.kind == placeDrive && p.path == "")}
 		if p.path == trashFilesDir() {
 			items[i].suffix = ""
 		}
@@ -178,7 +211,11 @@ func (m model) placesBody(md *modal, inner int) []string {
 		}
 	}
 	h = append(h, tideui.SoftHint{Key: "c", Label: "connect to server"}, tideui.SoftHint{Key: "esc", Label: "close"})
-	return append(body, "", r.RenderSoftHints(inner, h...))
+	body = append(body, "", r.RenderSoftHints(inner, h...))
+	if m.cfg.PlacesInList == placesListOff {
+		body = append(body, r.Styles.DetailMeta.Render(" Settings (S) can also list these below every folder"))
+	}
+	return body
 }
 
 // handlePlacesKey handles the keys places adds to a menu; ok is false for
@@ -191,53 +228,25 @@ func (m model) handlePlacesKey(md *modal, key string) (model, tea.Cmd, bool) {
 	switch key {
 	case "enter", "right", "l":
 		m.modal = nil
-		switch {
-		case p.kind == placeConnect:
-			m.openConnect("", "")
-		case p.kind == placeBrowse:
-			return m, m.openBrowse(), true
-		case p.kind == placeServer:
-			return m, m.connect(p.uri, false), true
-		case p.missing:
+		if p.missing {
 			m.setMsg(tildePath(p.path)+" no longer exists · d removes the bookmark", true)
 			m.openPlacesAt(md.sel)
-		case p.path != "":
-			m.chdir(p.path, "")
-		case p.drive.locked:
-			m.modal = &modal{kind: mInput, purpose: "unlock", title: "unlock " + p.name, secret: true,
-				label: "Passphrase for " + p.name + " (" + p.drive.dev + "):", places: []place{p}}
-		default:
-			m.setMsg("mounting "+p.name+"…", false)
-			return m, mountDrive(p.drive, ""), true
+			return m, nil, true
 		}
-		return m, nil, true
+		return m, m.openPlace(p), true
 	case "u":
-		switch {
-		case p.kind == placeDrive && p.path != "":
-			m.modal = nil
-			m.leaveMount(p.path)
-			m.setMsg("unmounting "+p.name+"…", false)
-			return m, unmountDrive(p.drive), true
-		case p.kind == placeNet && p.net.system && !hasFuseMount(p.net.path):
-			m.modal = nil
-			return m, m.unmountAsRoot(p.net), true
-		case p.kind == placeNet:
-			m.modal = nil
-			m.setMsg("disconnecting "+p.name+"…", false)
-			return m, m.disconnect(p.net), true
+		if !unmountable(p) {
+			m.setMsg("only mounted drives and network locations can be unmounted", true)
+			return m, nil, true
 		}
-		m.setMsg("only mounted drives and network locations can be unmounted", true)
-		return m, nil, true
+		m.modal = nil
+		return m, m.unmountPlace(p), true
 	case "d", "delete":
-		switch {
-		case p.bookmark:
-			m.removeBookmark(p.path)
-		case p.kind == placeServer:
-			m.forgetServer(p.uri)
-		default:
+		if !forgettable(p) {
 			m.setMsg("only bookmarks and saved servers can be removed", true)
 			return m, nil, true
 		}
+		m.forgetPlace(p)
 		m.openPlacesAt(md.sel)
 		return m, nil, true
 	case "c", "+":
@@ -245,6 +254,59 @@ func (m model) handlePlacesKey(md *modal, key string) (model, tea.Cmd, bool) {
 		return m, nil, true
 	}
 	return m, nil, false
+}
+
+func unmountable(p place) bool {
+	return (p.kind == placeDrive && p.path != "") || p.kind == placeNet
+}
+
+func forgettable(p place) bool { return p.bookmark || p.kind == placeServer }
+
+// unmountPlace unmounts a drive or disconnects a network location.
+func (m *model) unmountPlace(p place) tea.Cmd {
+	switch {
+	case p.kind == placeDrive:
+		m.leaveMount(p.path)
+		m.setMsg("unmounting "+p.name+"…", false)
+		return unmountDrive(p.drive)
+	case p.net.system && !hasFuseMount(p.net.path):
+		return m.unmountAsRoot(p.net)
+	}
+	m.setMsg("disconnecting "+p.name+"…", false)
+	return m.disconnect(p.net)
+}
+
+// forgetPlace removes a bookmark or a saved server.
+func (m *model) forgetPlace(p place) {
+	if p.bookmark {
+		m.removeBookmark(p.path)
+	} else {
+		m.forgetServer(p.uri)
+	}
+}
+
+// openPlace goes to a place: opens its folder, or mounts, unlocks or
+// connects to it first.
+func (m *model) openPlace(p place) tea.Cmd {
+	switch {
+	case p.kind == placeConnect:
+		m.openConnect("", "")
+	case p.kind == placeBrowse:
+		return m.openBrowse()
+	case p.kind == placeTailnet:
+		return m.openTailnet()
+	case p.kind == placeServer:
+		return m.connect(p.uri, false)
+	case p.path != "":
+		m.chdir(p.path, "")
+	case p.drive.locked:
+		m.modal = &modal{kind: mInput, purpose: "unlock", title: "unlock " + p.name, secret: true,
+			label: "Passphrase for " + p.name + " (" + p.drive.dev + "):", places: []place{p}}
+	default:
+		m.setMsg("mounting "+p.name+"…", false)
+		return mountDrive(p.drive, "")
+	}
+	return nil
 }
 
 // mountsText is /proc/self/mounts (a variable so tests can supply their own).

@@ -84,6 +84,7 @@ aurs:
       - "imagemagick: image previews"
       - "poppler: PDF previews"
       - "ffmpegthumbnailer: video previews"
+      - "ffmpeg: playing videos and audio tags in previews"
       - "xdg-terminal-exec: terminal here / new window"
       - "udisks2: mount drives"
       - "gvfs: connect to servers (network places)"

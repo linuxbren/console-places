@@ -18,9 +18,11 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -505,19 +507,19 @@ func (m *model) answerConnect(s string, secret bool) tea.Cmd {
 	return c.wait()
 }
 
-// disconnect unmounts a network location, after moving tabs out of it.
+// disconnect unmounts a network location, after moving tabs out of it. A
+// location that's busy (often just a moment: a lookup still running) is
+// tried again a second later; if it's still busy, the message says what is
+// using it, and the next disconnect of it forces it.
 func (m *model) disconnect(nm netMount) tea.Cmd {
 	m.leaveMount(nm.path)
+	force := m.forceDisc != "" && m.forceDisc == nm.uri
+	m.forceDisc = ""
 	return func() tea.Msg {
-		var out []byte
-		var err error
-		switch {
-		case !nm.system:
-			out, err = exec.Command("gio", "mount", "-u", nm.uri).CombinedOutput()
-		case hasFuseMount(nm.path):
-			out, err = fuseUnmount(nm.path)
-		default:
-			out, err = exec.Command("umount", nm.path).CombinedOutput()
+		out, err := unmountNet(nm, force)
+		if err != nil && !force && isBusy(out) {
+			time.Sleep(busyRetry)
+			out, err = unmountNet(nm, false)
 		}
 		if err != nil {
 			text := strings.TrimSpace(string(out))
@@ -527,10 +529,81 @@ func (m *model) disconnect(nm netMount) tea.Cmd {
 			if i := strings.LastIndex(text, ": "); i >= 0 && strings.HasPrefix(text, "gio:") {
 				text = text[i+2:]
 			}
+			if isBusy(out) && !force {
+				text = nm.name + " is in use"
+				if who := mountUsers(nm.path); len(who) > 0 {
+					text += " by " + strings.Join(who, ", ")
+				}
+				return placeMsg{text: text + " · disconnect again to force it", err: true, busy: nm.uri}
+			}
 			return placeMsg{text: "disconnect " + nm.name + ": " + text, err: true}
 		}
 		return placeMsg{text: "disconnected " + nm.name}
 	}
+}
+
+// busyRetry is how long a busy location gets before the second try.
+var busyRetry = time.Second
+
+func isBusy(out []byte) bool { return strings.Contains(strings.ToLower(string(out)), "busy") }
+
+// unmountNet runs the unmount; force goes ahead even while it's in use.
+func unmountNet(nm netMount, force bool) ([]byte, error) {
+	switch {
+	case !nm.system && force:
+		return exec.Command("gio", "mount", "-u", "-f", nm.uri).CombinedOutput()
+	case !nm.system:
+		return exec.Command("gio", "mount", "-u", nm.uri).CombinedOutput()
+	case hasFuseMount(nm.path) && force:
+		return fuseUnmount(nm.path, "-z")
+	case hasFuseMount(nm.path):
+		return fuseUnmount(nm.path)
+	case force:
+		return exec.Command("umount", "-l", nm.path).CombinedOutput()
+	}
+	return exec.Command("umount", nm.path).CombinedOutput()
+}
+
+// mountUsers names the programs with a folder or file open under path
+// (from /proc: the user's own processes), at most three.
+func mountUsers(path string) []string {
+	if path == "" {
+		return nil
+	}
+	inside := func(p string) bool { return p == path || strings.HasPrefix(p, path+"/") }
+	self := os.Getpid()
+	seen := map[string]bool{}
+	var out []string
+	procs, _ := filepath.Glob("/proc/[0-9]*")
+	for _, pd := range procs {
+		pid, _ := strconv.Atoi(filepath.Base(pd))
+		uses := false
+		if cwd, err := os.Readlink(pd + "/cwd"); err == nil && inside(cwd) {
+			uses = true
+		}
+		if !uses {
+			fds, _ := os.ReadDir(pd + "/fd")
+			for _, fd := range fds {
+				if t, err := os.Readlink(pd + "/fd/" + fd.Name()); err == nil && inside(t) {
+					uses = true
+					break
+				}
+			}
+		}
+		if !uses {
+			continue
+		}
+		name := "tidefiles"
+		if pid != self {
+			b, _ := os.ReadFile(pd + "/comm")
+			name = strings.TrimSpace(string(b)) + " (" + strconv.Itoa(pid) + ")"
+		}
+		if !seen[name] && len(out) < 3 {
+			seen[name] = true
+			out = append(out, name)
+		}
+	}
+	return out
 }
 
 func hasFuseMount(path string) bool {
@@ -542,10 +615,10 @@ func hasFuseMount(path string) bool {
 	return false
 }
 
-func fuseUnmount(path string) ([]byte, error) {
+func fuseUnmount(path string, flags ...string) ([]byte, error) {
 	for _, bin := range []string{"fusermount3", "fusermount"} {
 		if _, err := exec.LookPath(bin); err == nil {
-			return exec.Command(bin, "-u", path).CombinedOutput()
+			return exec.Command(bin, append(append([]string{"-u"}, flags...), path)...).CombinedOutput()
 		}
 	}
 	return exec.Command("umount", path).CombinedOutput()

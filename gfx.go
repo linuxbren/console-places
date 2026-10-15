@@ -149,6 +149,16 @@ type gfxOut struct {
 
 func newGfxOut(f *os.File) *gfxOut { return &gfxOut{File: f} }
 
+// forget is for after the screen was cleared: the image is gone, so the
+// next flush draws it again.
+func (g *gfxOut) forget() {
+	g.mu.Lock()
+	g.drawn = nil
+	g.mu.Unlock()
+}
+
+type gfxRedrawMsg struct{}
+
 // set declares which image should currently be visible (nil for none).
 func (g *gfxOut) set(o *overlay, bg lipgloss.Color) {
 	g.mu.Lock()

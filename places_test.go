@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -504,6 +505,48 @@ func TestDisconnectNetwork(t *testing.T) {
 	}
 }
 
+// A busy location is tried again, then named with what uses it; the next
+// disconnect forces it.
+func TestDisconnectBusy(t *testing.T) {
+	log := filepath.Join(t.TempDir(), "gio.log")
+	fakeTool(t, "gio", `echo "$@" >> `+log+`
+case "$*" in *-f*) exit 0 ;; esac
+echo "gio: smb://nas/photos/: File system is busy" >&2; exit 2
+`)
+	orig := busyRetry
+	busyRetry = 0
+	t.Cleanup(func() { busyRetry = orig })
+	share := t.TempDir()
+	m := testModel(t, t.TempDir())
+	nm := netMount{name: "photos on nas", uri: "smb://nas/photos/", path: share}
+	m, _ = drive1(t, m, m.disconnect(nm))
+	b, _ := os.ReadFile(log)
+	if strings.Count(string(b), "mount -u smb://nas/photos/") != 2 || !strings.Contains(m.msg, "photos on nas is in use") ||
+		!strings.Contains(m.msg, "disconnect again to force it") || m.forceDisc != nm.uri {
+		t.Fatalf("busy: %q %q\n%s", m.msg, m.forceDisc, b)
+	}
+	m, _ = drive1(t, m, m.disconnect(nm))
+	b, _ = os.ReadFile(log)
+	if !strings.Contains(string(b), "mount -u -f smb://nas/photos/") || m.msg != "disconnected photos on nas" || m.forceDisc != "" {
+		t.Fatalf("forced: %q\n%s", m.msg, b)
+	}
+}
+
+func TestMountUsers(t *testing.T) {
+	dir := t.TempDir()
+	f, err := os.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if got := mountUsers(dir); len(got) != 1 || got[0] != "tidefiles" {
+		t.Fatalf("users: %v", got)
+	}
+	if got := mountUsers(t.TempDir()); len(got) != 0 {
+		t.Fatalf("unused: %v", got)
+	}
+}
+
 func TestSystemNetMounts(t *testing.T) {
 	got := systemNetMounts("//nas/photos /mnt/photos cifs rw 0 0\nme@box:/srv /home/me/box fuse.sshfs rw 0 0\ngvfsd-fuse /run/user/1000/gvfs fuse.gvfsd-fuse rw 0 0\nnas:/export /mnt/my\\040nfs nfs4 rw 0 0\n")
 	if len(got) != 3 || got[0].path != "/mnt/photos" || got[1].name != "me@box:/srv" || got[2].path != "/mnt/my nfs" || !got[0].system {
@@ -860,7 +903,7 @@ func TestFirewallDialog(t *testing.T) {
 	m = mkey(t, m, "f")
 	body := strings.Join(m.modal.lines, "\n")
 	if m.modal.purpose != "allowfw" || !strings.Contains(body, "ufw allow proto udp from 192.168.1.0/24 port 3702") ||
-		!strings.Contains(body, "sudo ufw delete <number>") || !strings.Contains(body, "Windows PCs answer") {
+		!strings.Contains(body, "f removes them") || !strings.Contains(body, "Windows PCs answer") {
 		t.Fatalf("explanation:\n%s", body)
 	}
 	m, cmd = m.handleModalKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
@@ -879,6 +922,50 @@ func TestFirewallDialog(t *testing.T) {
 	}
 	if m.modal == nil || m.modal.purpose != "browsing" || cmd == nil {
 		t.Fatalf("browses again afterwards: %+v", m.modal)
+	}
+}
+
+func TestFirewallRemove(t *testing.T) {
+	log := fakeRoot(t)
+	fakeTool(t, "ufw", `echo "ufw $*" >> `+log+"\n")
+	dir := t.TempDir()
+	origC, origR, origL := ufwConf, ufwRules, localLAN
+	ufwConf, ufwRules = filepath.Join(dir, "ufw.conf"), filepath.Join(dir, "user.rules")
+	localLAN = func() string { return "192.168.1.0/24" }
+	t.Cleanup(func() { ufwConf, ufwRules, localLAN = origC, origR, origL })
+	mkfile(t, ufwConf, "ENABLED=yes\n")
+	ours := "comment=" + hex.EncodeToString([]byte(fwComment))
+	// Ours from two networks, and the user's own rule for the same port.
+	mkfile(t, ufwRules, "### tuple ### allow udp any 0.0.0.0/0 3702 192.168.1.0/24 in "+ours+"\n"+
+		"### tuple ### allow udp any 0.0.0.0/0 137 192.168.1.0/24 in "+ours+"\n"+
+		"### tuple ### allow udp any 0.0.0.0/0 137 10.0.0.0/8 in "+ours+"\n"+
+		"### tuple ### allow udp any 0.0.0.0/0 137 172.16.0.0/12 in\n")
+
+	m := testModel(t, t.TempDir())
+	cmd := m.openBrowse()
+	m, _ = drive1(t, m, cmd)
+	if m.modal == nil || !strings.Contains(strings.Join(m.modal.lines, " "), "f undoes it") {
+		t.Fatalf("offer: %+v", m.modal)
+	}
+	m = mkey(t, m, "f")
+	body := strings.Join(m.modal.lines, "\n")
+	if m.modal.purpose != "removefw" || !strings.Contains(body, "ufw delete allow proto udp from 10.0.0.0/8 port 137") ||
+		strings.Contains(body, "172.16") {
+		t.Fatalf("remove dialog:\n%s", body)
+	}
+	for _, l := range m.modal.lines {
+		if n := len([]rune(l)); n > 62 {
+			t.Errorf("%d wide: %q", n, l)
+		}
+	}
+	m, cmd = m.handleModalKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	m, _ = drive1(t, m, cmd)
+	b, _ := os.ReadFile(log)
+	want := "ufw delete allow proto udp from 192.168.1.0/24 port 3702\n" +
+		"ufw delete allow proto udp from 192.168.1.0/24 port 137\n" +
+		"ufw delete allow proto udp from 10.0.0.0/8 port 137\n"
+	if !strings.HasSuffix(string(b), want) || m.msg != "firewall: removed the discovery rules tidefiles added" {
+		t.Fatalf("ufw saw (%q):\n%s", m.msg, b)
 	}
 }
 

@@ -76,6 +76,7 @@ const (
 	actTogglePreview
 	actScrollDown
 	actScrollUp
+	actPlay
 	actHelp
 	actUpdate
 	actQuit
@@ -135,7 +136,7 @@ var bindingGroups = []bindingGroup{
 		{actPaste, []string{"v", "ctrl+v"}, "SUPER+V  v", "paste  (works with other apps)"},
 		{actTrash, []string{"d", "delete"}, "d  delete", "move to trash"},
 		{actDelete, []string{"D", "shift+delete"}, "D", "delete permanently"},
-		{actRename, []string{"f2", "r"}, "F2  r", "rename"},
+		{actRename, []string{"f2", "r"}, "F2  r", "rename  (several selected: template or find & replace)"},
 		{actNewFile, []string{"n"}, "n", "new file"},
 		{actNewFolder, []string{"N"}, "N", "new folder"},
 		{actUndo, []string{"ctrl+z", "u"}, "ctrl+z  u", "undo last change"},
@@ -179,7 +180,8 @@ var bindingGroups = []bindingGroup{
 		{actPreviewNarrower, []string{"shift+left"}, "", ""},
 		{actScrollDown, []string{"J"}, "J / K", "scroll preview"},
 		{actScrollUp, []string{"K"}, "", ""},
-		{actRefresh, []string{"ctrl+r"}, "ctrl+r", "refresh"},
+		{actPlay, []string{"alt+p"}, "alt+p", "play / pause a video or GIF in the preview"},
+		{actRefresh, []string{"ctrl+r"}, "ctrl+r", "refresh (also redraws the screen)"},
 		{actTheme, []string{"T"}, "T", "theme picker"},
 		{actSettings, []string{"S"}, "S", "settings (tabs at startup, sort, previews…)"},
 	}},

@@ -16,11 +16,15 @@ func (m model) View() string {
 	if m.width == 0 || m.height == 0 {
 		return ""
 	}
+	return fitFrame(m.frame(), m.width)
+}
+
+func (m model) frame() string {
 	inner, rows := m.geometry()
 	m.syncGraphics(inner, rows)
 
-	parentTitle := tildePath(filepath.Dir(m.cwd))
-	files := len(m.entries) - len(m.trashRows())
+	parentTitle := displayPath(filepath.Dir(m.cwd))
+	files := len(m.entries) - len(virtualRows(m.entries))
 	hint := fmt.Sprintf("%d/%d", min(m.cursor+1, files), files)
 	if m.cfg.Sort != "name" || m.cfg.SortDesc {
 		arrow := "↑"
@@ -32,7 +36,7 @@ func (m model) View() string {
 	if m.filter != "" {
 		hint = "/" + m.filter + "  " + hint
 	}
-	title := tildePath(m.cwd)
+	title := displayPath(m.cwd)
 	if m.arc != nil {
 		// The archive location leads: titles are cut from the right.
 		title = m.arc.label() + "  in " + tildePath(m.cwd)
@@ -100,6 +104,9 @@ func (m model) statusLeft() string {
 	if ok && e.kind == kindTrashLink {
 		return "Trash · " + plural(m.trashN, "item") + " · enter opens it"
 	}
+	if ok && e.kind == kindPlace {
+		return e.name + " · " + e.info() + " · " + placeKeys(*e.pl)
+	}
 	if ok && m.inTrash() {
 		if tm, found := m.trashMeta[e.name]; found {
 			return "from " + tildePath(tm.origin) + " · deleted " + tm.deleted.Format("2006-01-02 15:04") + " · r restores"
@@ -142,7 +149,25 @@ func (m model) renderList(ents []entry, cursor, offset, width, rows int, main bo
 		e := ents[i]
 		switch e.kind {
 		case kindSeparator:
-			lines = append(lines, m.renderer.Styles.DetailMeta.Render(" "+strings.Repeat("─", max(1, width-2))))
+			meta := m.renderer.Styles.DetailMeta
+			if e.name != "" && width > len(e.name)+6 { // a places section: the name stands out
+				label := m.renderer.Styles.Badge.Render(" " + e.name + " ")
+				lines = append(lines, " "+label+meta.Render(" "+strings.Repeat("─", max(1, width-lipgloss.Width(label)-3))))
+				continue
+			}
+			lines = append(lines, meta.Render(" "+strings.Repeat("─", max(1, width-2))))
+			continue
+		case kindNote:
+			lines = append(lines, "  "+e.name)
+			continue
+		case kindPlace:
+			p := e.pl
+			row := tideui.Row{Prefix: "  ", Text: placeIcon(*p) + " " + sanitize(e.name), Selected: i == cursor,
+				Muted: p.kind == placeServer || p.kind == placeConnect || p.kind == placeBrowse || p.kind == placeTailnet || (p.kind == placeDrive && p.path == "")}
+			if width >= 28 {
+				row.Suffix = placeSuffix(*p) + " "
+			}
+			lines = append(lines, m.renderer.RenderRow(row, width))
 			continue
 		case kindTrashLink:
 			text := trashIcon + " Trash · " + strconv.Itoa(m.trashN)
@@ -191,7 +216,7 @@ func (m model) syncGraphics(inner [3]int, rows int) {
 		clrRow: top, clrCol: left, clrCols: inner[2], clrRows: rows,
 	}
 	ov.key = fmt.Sprintf("%s@%d,%d", m.pv.key, ov.row, ov.col)
-	if m.pv.anim != nil {
+	if m.pv.anim != nil || m.pv.video != nil {
 		ov.frameOf = ov.key
 		ov.key += fmt.Sprintf("#%d", m.pv.frame)
 	}
