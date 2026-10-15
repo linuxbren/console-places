@@ -54,8 +54,9 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
   for file managers and paths for terminals and editors), trash with **undo**, rename, new file/folder, properties, permissions (chmod), open with…, places and
   bookmarks, back/forward history, filter, fuzzy find across subfolders, search inside files (ripgrep when installed; `alt+r` for regex), sort, terminal here, mouse support.
 - **Tabs** — `ctrl+t` opens a tab on the current folder, `ctrl+w` closes it, `tab`/`shift+tab` or `1`…`9`
-  switch; each tab keeps its own folder, selection and history. Tabs are reopened next time, with the
-  folder you start in as the active one (or only when no folder is given, or never — see settings).
+  switch; each tab keeps its own folder, selection and history. Tabs are reopened next time on the tab
+  you were last in; started with a folder (`tidefiles ~/Music`), that folder's tab is active (added if
+  none is open there). Settings can restore tabs only when no folder is given, or never.
 - **Settings page** — `S` lists every preference (tabs at startup, theme, hidden files, sort, preview
   pane, word wrap, markdown, image previews, updates); `←`/`→` change one, and it's saved straight away.
 - **Keeps itself up to date** — release binaries check for a new version once a day, install it after
