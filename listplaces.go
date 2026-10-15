@@ -12,6 +12,7 @@ package main
 // and right after anything is mounted, unmounted or connected.
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,17 +46,26 @@ func (m model) listsPlaces() bool {
 // rescanPlaces starts a background scan if the list needs one and none is
 // running; force skips the wait between scans.
 func (m *model) rescanPlaces(force bool) tea.Cmd {
-	if m.cfg.PlacesInList != placesListAll || m.scanning || (!force && time.Since(m.scannedAt) < placesRescan) {
+	if m.cfg.PlacesInList != placesListAll || (!force && time.Since(m.scannedAt) < placesRescan) {
+		return nil
+	}
+	if m.scanning { // that scan may have looked before the change: look again after it
+		m.rescanAfter = m.rescanAfter || force
 		return nil
 	}
 	m.scanning = true
 	return scanPlacesCmd()
 }
 
-func (m *model) onPlacesScanned(msg placesScannedMsg) {
+func (m *model) onPlacesScanned(msg placesScannedMsg) tea.Cmd {
 	m.scanning, m.scannedAt = false, time.Now()
 	m.scan = &msg.scan
 	m.refreshPlaceRows()
+	if m.rescanAfter {
+		m.rescanAfter = false
+		return m.rescanPlaces(true)
+	}
+	return nil
 }
 
 // refreshPlaceRows rebuilds the rows below the files when they changed,
@@ -153,11 +163,21 @@ func sameRows(a, b []entry) bool {
 		return false
 	}
 	for i := range a {
-		if a[i].kind != b[i].kind || a[i].name != b[i].name || a[i].info() != b[i].info() {
+		if a[i].kind != b[i].kind || a[i].name != b[i].name || a[i].placeSig() != b[i].placeSig() {
 			return false
 		}
 	}
 	return true
+}
+
+// placeSig is everything a place row shows or does: a saved server and the
+// same server connected share a name and an address but not this.
+func (e entry) placeSig() string {
+	if e.pl == nil {
+		return ""
+	}
+	p := e.pl
+	return fmt.Sprintf("%d|%s|%s|%s|%t", p.kind, p.info, p.path, placeSuffix(*p), p.missing)
 }
 
 // info is a place row's suffix ("" for other rows).
@@ -312,7 +332,7 @@ func (m model) placePreview(p place) preview {
 		}
 		return dirPreview(pv, p.path, m.previewOpts())
 	case p.kind == placeNet:
-		pv.lines = []string{"  " + p.net.uri, "  " + tildePath(p.path), "", "  enter opens it · d disconnects"}
+		pv.lines = []string{"  " + p.net.uri, "", "  asking " + p.name + " about itself…", "", "  enter opens it · d disconnects"}
 	case p.kind == placeServer:
 		pv.lines = []string{"  " + p.uri, "", "  saved server, not connected", "  enter connects · d forgets it"}
 	case p.kind == placeConnect:
@@ -322,5 +342,8 @@ func (m model) placePreview(p place) preview {
 	default:
 		pv.lines = []string{"  " + p.drive.dev + " · " + p.drive.fstype, "", "  not mounted · enter " + strings.TrimSuffix(placeAction(p), "s")}
 	}
+	o := m.previewOpts()
+	o.wrap = false
+	pv.lines = fitLines(pv.lines, o, len(pv.lines)) // a long path is cut, not wrapped
 	return pv
 }

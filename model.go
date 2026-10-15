@@ -54,28 +54,29 @@ type model struct {
 	parent       []entry
 	parentCursor int
 
-	cursors   map[string]string // dir -> last selected name, restored on re-entry
-	selected  map[string]bool   // names in cwd
-	clip      clipboard
-	titleDir  string // folder the window title was last set for
-	jump      jumpTarget
-	job       *job     // the running background job, if any
-	arc       *arcView // the archive being browsed, if any
-	quitting  bool     // quit once the running job has stopped
-	upd       updateState
-	restart   bool                 // quit, then restart into an installed update
-	tabs      []tabState           // all tabs; the fields above describe tabs[tab]
-	trashN    int                  // items in the trash, for the home folder's Trash row
-	trashMeta map[string]trashMeta // origins and dates, in the trash view
-	tab       int
-	undo      []undoItem
-	conn      *connection  // the network location being connected to
-	rm        *rootMount   // a system mount being set up
-	vid       *videoPlayer // the video playing in the preview, if any
-	scan      *placeScan   // drives and network locations, for places in the list
-	scannedAt time.Time
-	scanning  bool
-	bumped    time.Time // when down last stopped at the last file (see moveDown)
+	cursors     map[string]string // dir -> last selected name, restored on re-entry
+	selected    map[string]bool   // names in cwd
+	clip        clipboard
+	titleDir    string // folder the window title was last set for
+	jump        jumpTarget
+	job         *job     // the running background job, if any
+	arc         *arcView // the archive being browsed, if any
+	quitting    bool     // quit once the running job has stopped
+	upd         updateState
+	restart     bool                 // quit, then restart into an installed update
+	tabs        []tabState           // all tabs; the fields above describe tabs[tab]
+	trashN      int                  // items in the trash, for the home folder's Trash row
+	trashMeta   map[string]trashMeta // origins and dates, in the trash view
+	tab         int
+	undo        []undoItem
+	conn        *connection  // the network location being connected to
+	rm          *rootMount   // a system mount being set up
+	vid         *videoPlayer // the video playing in the preview, if any
+	scan        *placeScan   // drives and network locations, for places in the list
+	scannedAt   time.Time
+	scanning    bool
+	rescanAfter bool      // a forced rescan came in while scanning
+	bumped      time.Time // when down last stopped at the last file (see moveDown)
 
 	hist []string
 	hi   int
@@ -449,9 +450,12 @@ func (m *model) refreshPreview() tea.Cmd {
 		return nil
 	}
 	if ok && e.kind == kindPlace {
-		if key := "place|" + e.name + "|" + e.info(); m.pvKey != key {
+		if key := "place|" + e.name + "|" + e.placeSig(); m.pvKey != key {
 			m.pv = m.placePreview(*e.pl)
 			m.pvKey, m.pvPath, m.pvScroll = key, "", 0
+			if e.pl.kind == placeNet {
+				return netInfoCmd(key, *e.pl)
+			}
 		}
 		return nil
 	}
@@ -579,8 +583,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.onDiscover(msg)
 	case sharesMsg:
 		m.onShares(msg)
+	case gfxRedrawMsg:
+		if m.gfx != nil {
+			m.gfx.forget()
+			m.drawGraphicsNow()
+		}
+	case netInfoMsg:
+		if msg.key == m.pvKey {
+			o := m.previewOpts()
+			o.wrap = false
+			m.pv.lines = fitLines(msg.lines, o, len(msg.lines))
+		}
 	case placesScannedMsg:
-		m.onPlacesScanned(msg)
+		cmd = m.onPlacesScanned(msg)
 	case placeMsg:
 		cmd = m.rescanPlaces(true)
 		if msg.cause != nil && m.offerInstall(msg.cause) {
@@ -1053,6 +1068,8 @@ func (m model) perform(act action) (model, tea.Cmd) {
 	case actRefresh:
 		m.reload(m.curName())
 		m.setMsg("refreshed", false)
+		redraw := func() tea.Msg { return gfxRedrawMsg{} }                               // the clear erased any image
+		return m, tea.Batch(tea.Sequence(tea.ClearScreen, redraw), m.rescanPlaces(true)) // also repaints a garbled screen
 	case actSettings:
 		m.openSettings()
 	case actTheme:

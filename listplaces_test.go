@@ -255,6 +255,36 @@ func TestPlacesInListAll(t *testing.T) {
 	if m.modal == nil {
 		t.Fatal("enter on Connect to server… opens the address prompt")
 	}
+	m.modal = nil
+
+	// Disconnected, a saved server keeps its name and address: the row must
+	// still change to "not connected" (and a forced rescan during a scan runs
+	// after it).
+	for i, e := range m.entries {
+		if e.name == "photos on nas" {
+			m.cursor = i
+		}
+	}
+	m.pvKey = ""
+	m, _ = drive1(t, m, m.refreshPreview()) // a connected location: details come in the background
+	if pv := strings.Join(m.pv.lines, "\n"); !strings.Contains(pv, "Computer   nas") || !strings.Contains(pv, "Windows / Samba") {
+		t.Fatalf("network preview: %s", pv)
+	}
+	gvfsMounts = func() []netMount { return nil }
+	m.scanning = true
+	if m.rescanPlaces(true) != nil || !m.rescanAfter {
+		t.Fatal("a forced rescan during a scan waits for it")
+	}
+	m.scanning = false
+	m.rescanAfter = false
+	m, _ = drive1(t, m, m.rescanPlaces(true))
+	if e, _ := m.current(); e.name != "photos on nas" || e.pl.kind != placeServer || !strings.Contains(ansi.Strip(m.View()), "not connected") {
+		t.Fatalf("after disconnecting: %+v\n%s", e, ansi.Strip(m.View()))
+	}
+	m.refreshPreview()
+	if !strings.Contains(strings.Join(m.pv.lines, "\n"), "enter connects") {
+		t.Fatalf("preview not rebuilt: %v", m.pv.lines)
+	}
 }
 
 func TestPlacesInListSetting(t *testing.T) {

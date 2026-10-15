@@ -181,7 +181,7 @@ var bindingGroups = []bindingGroup{
 		{actScrollDown, []string{"J"}, "J / K", "scroll preview"},
 		{actScrollUp, []string{"K"}, "", ""},
 		{actPlay, []string{"alt+p"}, "alt+p", "play / pause a video or GIF in the preview"},
-		{actRefresh, []string{"ctrl+r"}, "ctrl+r", "refresh"},
+		{actRefresh, []string{"ctrl+r"}, "ctrl+r", "refresh (also redraws the screen)"},
 		{actTheme, []string{"T"}, "T", "theme picker"},
 		{actSettings, []string{"S"}, "S", "settings (tabs at startup, sort, previews…)"},
 	}},
