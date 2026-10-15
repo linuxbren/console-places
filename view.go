@@ -101,11 +101,7 @@ func (m model) statusLeft() string {
 		return "Trash · " + plural(m.trashN, "item") + " · enter opens it"
 	}
 	if ok && e.kind == kindPlace {
-		text := e.name + " · " + e.info() + " · enter " + placeAction(*e.pl)
-		if e.pl.bookmark {
-			text += " · B removes it"
-		}
-		return text + " · b for more"
+		return e.name + " · " + e.info() + " · " + placeKeys(*e.pl)
 	}
 	if ok && m.inTrash() {
 		if tm, found := m.trashMeta[e.name]; found {
@@ -161,7 +157,7 @@ func (m model) renderList(ents []entry, cursor, offset, width, rows int, main bo
 		case kindPlace:
 			p := e.pl
 			row := tideui.Row{Prefix: "  ", Text: placeIcon(*p) + " " + sanitize(e.name), Selected: i == cursor,
-				Muted: p.kind == placeServer || (p.kind == placeDrive && p.path == "")}
+				Muted: p.kind == placeServer || p.kind == placeConnect || p.kind == placeBrowse || (p.kind == placeDrive && p.path == "")}
 			if width >= 28 {
 				row.Suffix = placeSuffix(*p) + " "
 			}

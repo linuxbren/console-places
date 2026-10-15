@@ -710,6 +710,10 @@ func (m model) guard(act action) (model, tea.Cmd, bool) {
 			return m, nil, true
 		}
 	}
+	if cur, ok := m.current(); ok && cur.kind == kindPlace && act == actTrash && len(m.selected) == 0 {
+		cmd := m.dropPlace(*cur.pl)
+		return m, cmd, true
+	}
 	if cur, ok := m.current(); ok && cur.virtual() && onTheFile[act] && (len(m.selected) == 0 || currentOnly[act]) {
 		m.setMsg(cur.name+" is a shortcut, not a file: enter "+shortcutAction(cur), false)
 		return m, nil, true

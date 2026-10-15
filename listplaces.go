@@ -155,7 +155,10 @@ func (m model) placeRows() []entry {
 	section(secBookmarks, marks)
 	if m.cfg.PlacesInList == placesListAll && m.scan != nil {
 		section(secDrives, m.scan.drives)
-		section(secNetwork, append(append([]place(nil), m.scan.nets...), m.scan.servers(m.cfg.Servers)...))
+		net := append(append([]place(nil), m.scan.nets...), m.scan.servers(m.cfg.Servers)...)
+		section(secNetwork, append(net,
+			place{name: "Browse network…", section: secNetwork, kind: placeBrowse, info: "find computers"},
+			place{name: "Connect to server…", section: secNetwork, kind: placeConnect, info: "smb · sftp · nfs"}))
 	}
 	if keep("trash") {
 		out = append(out, entry{kind: kindSeparator}, entry{name: "Trash", isDir: true, kind: kindTrashLink})
@@ -165,10 +168,49 @@ func (m model) placeRows() []entry {
 
 // shortcutAction is what enter does on a Trash or place row.
 func shortcutAction(e entry) string {
-	if e.pl != nil {
-		return placeAction(*e.pl) + " it"
+	switch {
+	case e.pl == nil:
+		return "opens it"
+	case e.pl.kind == placeConnect || e.pl.kind == placeBrowse:
+		return placeAction(*e.pl)
 	}
-	return "opens it"
+	return placeAction(*e.pl) + " it"
+}
+
+// placeKeys is what enter and d do on a place row, for the status bar.
+func placeKeys(p place) string {
+	text := "enter " + placeAction(p)
+	switch {
+	case p.bookmark:
+		text += " · d (or B) removes the bookmark"
+	case p.kind == placeServer:
+		text += " · d forgets it"
+	case p.kind == placeDrive && p.path != "":
+		text += " · d unmounts"
+	case p.kind == placeNet:
+		text += " · d disconnects"
+	}
+	return text
+}
+
+// dropPlace is d on a place row: unmount a drive, disconnect a network
+// location, remove a bookmark or forget a saved server.
+func (m *model) dropPlace(p place) tea.Cmd {
+	switch {
+	case unmountable(p):
+		return m.unmountPlace(p)
+	case forgettable(p):
+		m.forgetPlace(p)
+		if p.bookmark {
+			m.setMsg("removed bookmark "+tildePath(p.path), false)
+		} else {
+			m.setMsg("forgot "+p.name, false)
+		}
+		m.refreshPlaceRows()
+		return nil
+	}
+	m.setMsg(p.name+": nothing to remove · enter "+shortcutAction(entry{pl: &p}), false)
+	return nil
 }
 
 // placeIcon marks a place row's kind (Nerd Font icons, like the Trash row).
@@ -178,6 +220,10 @@ func placeIcon(p place) string {
 		return "★"
 	case p.kind == placeDrive || p.section == secDrives:
 		return "\uf0a0" // nf-fa-hdd_o
+	case p.kind == placeConnect:
+		return "\uf067" // nf-fa-plus
+	case p.kind == placeBrowse:
+		return "\uf002" // nf-fa-search
 	}
 	return "\uf233" // nf-fa-server
 }
@@ -202,6 +248,10 @@ func placeAction(p place) string {
 	switch {
 	case p.kind == placeServer:
 		return "connects"
+	case p.kind == placeConnect:
+		return "asks for a server address"
+	case p.kind == placeBrowse:
+		return "looks for computers nearby"
 	case p.kind == placeDrive && p.path == "" && p.drive.locked:
 		return "unlocks"
 	case p.kind == placeDrive && p.path == "":
@@ -222,9 +272,13 @@ func (m model) placePreview(p place) preview {
 		}
 		return dirPreview(pv, p.path, m.previewOpts())
 	case p.kind == placeNet:
-		pv.lines = []string{"  " + p.net.uri, "  " + tildePath(p.path), "", "  enter opens it · b to disconnect"}
+		pv.lines = []string{"  " + p.net.uri, "  " + tildePath(p.path), "", "  enter opens it · d disconnects"}
 	case p.kind == placeServer:
-		pv.lines = []string{"  " + p.uri, "", "  saved server, not connected", "  enter connects · b to forget it"}
+		pv.lines = []string{"  " + p.uri, "", "  saved server, not connected", "  enter connects · d forgets it"}
+	case p.kind == placeConnect:
+		pv.lines = []string{"  Connect to a Windows, Mac or Samba share (smb://),", "  an SSH server (sftp://) or an NFS export (nfs://).", "", "  enter asks for the address"}
+	case p.kind == placeBrowse:
+		pv.lines = []string{"  Look for computers and shares on your network.", "", "  enter starts looking"}
 	default:
 		pv.lines = []string{"  " + p.drive.dev + " · " + p.drive.fstype, "", "  not mounted · enter " + strings.TrimSuffix(placeAction(p), "s")}
 	}
