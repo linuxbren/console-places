@@ -10,6 +10,7 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"math"
@@ -287,4 +288,64 @@ func (p *bplist) print(ref uint64, prefix string, depth int) error {
 		}
 	}
 	return nil
+}
+
+// plistTop returns a plist's top-level string, number and bool values,
+// binary or XML (for an app's Info.plist).
+func plistTop(b []byte) map[string]string {
+	out := map[string]string{}
+	if bytes.HasPrefix(b, bplistMagic) {
+		lines, err := decodeBplist(b)
+		if err != nil {
+			return out
+		}
+		for _, l := range lines {
+			if strings.HasPrefix(l, "    ") { // nested: not top level
+				continue
+			}
+			if k, v, ok := strings.Cut(strings.TrimSpace(l), ": "); ok {
+				out[k] = strings.Trim(v, `"`)
+			}
+		}
+		return out
+	}
+	d := xml.NewDecoder(bytes.NewReader(b))
+	depth, key, inKey := 0, "", false
+	var text strings.Builder
+	for {
+		tok, err := d.Token()
+		if err != nil {
+			return out
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			depth++
+			text.Reset()
+			inKey = t.Name.Local == "key"
+			if depth == 3 && (t.Name.Local == "true" || t.Name.Local == "false") && key != "" {
+				out[key] = t.Name.Local
+				key = ""
+			}
+		case xml.EndElement:
+			if depth == 3 { // plist > dict > key/value
+				switch t.Name.Local {
+				case "key":
+					key = text.String()
+				case "string", "integer", "real", "date":
+					if key != "" {
+						out[key] = text.String()
+					}
+					key = ""
+				case "array", "dict", "data":
+					key = ""
+				}
+			}
+			inKey = false
+			depth--
+		case xml.CharData:
+			if depth == 3 || inKey {
+				text.Write(t)
+			}
+		}
+	}
 }

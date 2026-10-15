@@ -36,10 +36,20 @@ var docExts = setOf(".docx", ".docm", ".pptx", ".xlsx", ".xlsm", ".odt", ".odp",
 // docPreview shows a document's text, or says why it can't.
 func docPreview(p preview, path string, e entry, o previewOpts) preview {
 	ext := strings.ToLower(filepath.Ext(e.name))
-	lines, meta, err := docText(path, ext)
+	var lines []string
+	var meta string
+	var err error
+	switch {
+	case peExts[ext]:
+		lines, meta, err = peLines(path)
+	case ext == ".msi":
+		lines, meta, err = msiLines(path)
+	default:
+		lines, meta, err = docText(path, ext)
+	}
 	if err != nil {
 		p.meta = humanSize(e.size)
-		p.lines = []string{"  cannot read the document: " + errText(err)}
+		p.lines = fitLines([]string{"  cannot read it: " + errText(err)}, o, 1)
 		return p
 	}
 	p.meta = meta + " · " + humanSize(e.size)
@@ -47,10 +57,34 @@ func docPreview(p preview, path string, e entry, o previewOpts) preview {
 		lines = []string{"(no text)"}
 	}
 	for i, l := range lines {
-		lines[i] = "  " + expandTabs(sanitize(l))
+		if !strings.HasPrefix(l, "  ") {
+			l = "  " + l
+		}
+		lines[i] = expandTabs(sanitize(l))
 	}
 	p.lines = fitLines(lines, o, previewMaxLines)
 	return p
+}
+
+// msiLines describes a Windows Installer package from its summary
+// information, as file(1) reads it (title, author, subject…).
+func msiLines(path string) ([]string, string, error) {
+	out, err := run("file", "-b", path)
+	if err != nil {
+		return nil, "", err
+	}
+	lines := []string{"  Windows Installer package", ""}
+	for _, part := range strings.Split(strings.TrimSpace(string(out)), ", ") {
+		k, v, ok := strings.Cut(part, ": ")
+		if !ok || strings.TrimSpace(v) == "" {
+			continue
+		}
+		switch k {
+		case "Title", "Subject", "Author", "Comments", "Keywords", "Name of Creating Application", "Create Time/Date":
+			lines = append(lines, "  "+padRight(k, 12)+" "+v)
+		}
+	}
+	return lines, "Windows Installer", nil
 }
 
 func docText(path, ext string) ([]string, string, error) {

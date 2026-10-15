@@ -72,7 +72,7 @@ func classify(e entry) previewKind {
 		return kindArchive
 	case markdownExts[ext]:
 		return kindMarkdown
-	case docExts[ext]:
+	case docExts[ext] || peExts[ext] || ext == ".msi":
 		return kindDoc
 	}
 	return kindText
@@ -122,7 +122,14 @@ func buildPreview(dir string, e entry, o previewOpts) preview {
 	kind := classify(e)
 	switch kind {
 	case kindDir:
-		return dirPreview(p, path, o)
+		p = dirPreview(p, path, o)
+		if strings.EqualFold(filepath.Ext(e.name), ".app") {
+			if app := appLines(path); app != nil {
+				p.meta = "Mac app"
+				p.lines = append(fitLines(app, o, len(app)), p.lines...)
+			}
+		}
+		return p
 	case kindImage, kindPDF, kindVideo:
 		if kind == kindImage && strings.EqualFold(filepath.Ext(e.name), ".gif") {
 			return gifPreview(p, path, e, o)
