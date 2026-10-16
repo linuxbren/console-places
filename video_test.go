@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/png"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -55,16 +56,8 @@ done
 	return dir, log
 }
 
-func execLook(name string) (string, error) {
-	for _, d := range []string{"/usr/bin", "/bin"} {
-		if p := filepath.Join(d, name); fileExists(p) {
-			return p, nil
-		}
-	}
-	return "", os.ErrNotExist
-}
-
-func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
+// execLook finds a real tool on PATH (Nix's build sandbox has no /usr/bin).
+func execLook(name string) (string, error) { return exec.LookPath(name) }
 
 // videoModel shows clip.mp4's preview, built as Bubble Tea would.
 func videoModel(t *testing.T, dir string) model {
