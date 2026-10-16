@@ -539,7 +539,7 @@ func TestMountUsers(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer f.Close()
-	if got := mountUsers(dir); len(got) != 1 || got[0] != "tidefiles" {
+	if got := mountUsers(dir); len(got) != 1 || got[0] != "console-places" {
 		t.Fatalf("users: %v", got)
 	}
 	if got := mountUsers(t.TempDir()); len(got) != 0 {
@@ -917,7 +917,7 @@ func TestFirewallDialog(t *testing.T) {
 	m, cmd = m.handleModalKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
 	m, cmd = drive1(t, m, cmd)
 	b, _ := os.ReadFile(log)
-	if !strings.Contains(string(b), "ufw allow proto udp from 192.168.1.0/24 port 3702 comment tidefiles discovery\nufw allow proto udp from 192.168.1.0/24 port 137 comment tidefiles discovery") {
+	if !strings.Contains(string(b), "ufw allow proto udp from 192.168.1.0/24 port 3702 comment console-places discovery\nufw allow proto udp from 192.168.1.0/24 port 137 comment console-places discovery") {
 		t.Fatalf("ufw saw:\n%s", b)
 	}
 	if m.modal == nil || m.modal.purpose != "browsing" || cmd == nil {
@@ -964,7 +964,7 @@ func TestFirewallRemove(t *testing.T) {
 	want := "ufw delete allow proto udp from 192.168.1.0/24 port 3702\n" +
 		"ufw delete allow proto udp from 192.168.1.0/24 port 137\n" +
 		"ufw delete allow proto udp from 10.0.0.0/8 port 137\n"
-	if !strings.HasSuffix(string(b), want) || m.msg != "firewall: removed the discovery rules tidefiles added" {
+	if !strings.HasSuffix(string(b), want) || m.msg != "firewall: removed the discovery rules console-places added" {
 		t.Fatalf("ufw saw (%q):\n%s", m.msg, b)
 	}
 }

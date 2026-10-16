@@ -12,13 +12,13 @@ import (
 // check at throwaway places, so no test can read or change the user's real
 // ones or reach GitHub.
 func TestMain(m *testing.M) {
-	dir, err := os.MkdirTemp("", "tidefiles-test-")
+	dir, err := os.MkdirTemp("", "console-places-test-")
 	if err != nil {
 		panic(err)
 	}
-	os.Setenv("TIDEFILES_CONFIG", filepath.Join(dir, "config.json"))
+	os.Setenv("CONSOLE_PLACES_CONFIG", filepath.Join(dir, "config.json"))
 	os.Setenv("XDG_DATA_HOME", filepath.Join(dir, "data"))
-	os.Setenv("TIDEFILES_UPDATE_URL", "http://127.0.0.1:1/") // never ask GitHub
+	os.Setenv("CONSOLE_PLACES_UPDATE_URL", "http://127.0.0.1:1/") // never ask GitHub
 	// No real drives, mounts or gvfs locations: tests that need some set them.
 	blockDevices = func() ([]blockDev, error) { return nil, nil }
 	gvfsMounts = func() []netMount { return nil }

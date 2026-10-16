@@ -1,7 +1,8 @@
-/tidefiles
+/console-places
 dist/
 # makepkg output in contrib/arch
 contrib/arch/src/
 contrib/arch/pkg/
 contrib/arch/*.pkg.tar.*
 contrib/arch/*.tar.gz
+/tidefiles

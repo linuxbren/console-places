@@ -8,7 +8,7 @@ package main
 // paces itself (-re), and a full pipe holds it back, so nothing piles up.
 //
 // One decoder at most: it is killed when the preview shows something else,
-// is hidden, a dialog opens, on alt+p, and on quit (and with tidefiles, via
+// is hidden, a dialog opens, on alt+p, and on quit (and with console-places, via
 // Pdeathsig). Pausing kills it too; playing again restarts ffmpeg where it
 // stopped. No seeking and no sound: enter opens a real player.
 
@@ -102,7 +102,7 @@ func (v *videoPlayer) play() tea.Cmd {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	c := exec.CommandContext(ctx, bin, videoArgs(v.path, v.pos(), v.w, v.h)...)
-	c.SysProcAttr = &syscall.SysProcAttr{Pdeathsig: syscall.SIGKILL} // never outlive tidefiles
+	c.SysProcAttr = &syscall.SysProcAttr{Pdeathsig: syscall.SIGKILL} // never outlive console-places
 	r := &videoRun{cancel: cancel, frames: make(chan animFrame, 1), stderr: &bytes.Buffer{}}
 	c.Stderr = r.stderr
 	out, err := c.StdoutPipe()

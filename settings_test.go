@@ -27,7 +27,7 @@ func TestRestoreTabsAtStart(t *testing.T) {
 // Every setting can be set to each of its choices and reads back as set.
 func TestSettingsRoundTrip(t *testing.T) {
 	m := testModel(t, t.TempDir())
-	t.Setenv("TIDEFILES_IMAGES", "") // let the image setting decide
+	t.Setenv("CONSOLE_PLACES_IMAGES", "") // let the image setting decide
 	for _, s := range settingsList() {
 		if s.action {
 			continue
@@ -40,7 +40,7 @@ func TestSettingsRoundTrip(t *testing.T) {
 		}
 	}
 	var saved config
-	b, _ := os.ReadFile(os.Getenv("TIDEFILES_CONFIG"))
+	b, _ := os.ReadFile(os.Getenv("CONSOLE_PLACES_CONFIG"))
 	if err := json.Unmarshal(b, &saved); err != nil || saved.TabsOnStart != tabsRestoreNever || saved.ImageMode != "blocks" {
 		t.Fatalf("not saved: %v %+v", err, saved)
 	}

@@ -11,7 +11,7 @@ import (
 
 func testModel(t *testing.T, dir string) model {
 	t.Helper()
-	t.Setenv("TIDEFILES_IMAGES", "blocks") // no terminal probing in tests
+	t.Setenv("CONSOLE_PLACES_IMAGES", "blocks") // no terminal probing in tests
 	cfg := defaultConfig()
 	cfg.Theme = "tokyo-night"
 	m := newModel(dir, cfg, "", newGfxOut(os.Stdout))

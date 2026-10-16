@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-// config is the small amount of state tidefiles remembers between runs.
+// config is the small amount of state console-places remembers between runs.
 type config struct {
 	Theme      string   `json:"theme,omitempty"`
 	ShowHidden bool     `json:"show_hidden"`
@@ -41,14 +41,15 @@ func defaultConfig() config {
 }
 
 func configPath() string {
-	if p := os.Getenv("TIDEFILES_CONFIG"); p != "" {
+	if p := envVar("CONFIG"); p != "" {
 		return p
 	}
 	dir, err := os.UserConfigDir()
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(dir, "tidefiles", "config.json")
+	migrateConfigDir(dir)
+	return filepath.Join(dir, appName, "config.json")
 }
 
 func loadConfig() config {

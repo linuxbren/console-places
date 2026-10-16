@@ -5,7 +5,7 @@ package main
 // 3702 and older machines answer NetBIOS from port 137. Those answers aren't
 // replies the firewall recognises (the question went to a multicast or
 // broadcast address), so ufw's default "deny incoming" drops them. mDNS
-// passes (ufw allows it by default). tidefiles explains this and, if asked,
+// passes (ufw allows it by default). console-places explains this and, if asked,
 // adds two narrow ufw rules: UDP from the local network, from those source
 // ports only. Nothing changes without a yes. The same place (browse
 // results, f) offers to remove the rules again once they are there, finding
@@ -93,19 +93,23 @@ func discoveryBlocked(lan string) bool {
 	return false
 }
 
-// fwComment labels the rules tidefiles adds; ufw stores it hex-encoded.
-const fwComment = "tidefiles discovery"
+// fwComment labels the rules console-places adds; ufw stores it hex-encoded.
+// Rules added as tidefiles carry fwOldComment.
+const (
+	fwComment    = "console-places discovery"
+	fwOldComment = "tidefiles discovery"
+)
 
-// fwRule is one discovery rule tidefiles added.
+// fwRule is one discovery rule console-places added.
 type fwRule struct{ src, port string }
 
-// ourRules lists the discovery rules tidefiles added, on any network.
+// ourRules lists the discovery rules console-places added, on any network.
 func ourRules() []fwRule {
 	rules, err := os.ReadFile(ufwRules)
 	if err != nil {
 		return nil
 	}
-	tag := "comment=" + hex.EncodeToString([]byte(fwComment))
+	tags := []string{"comment=" + hex.EncodeToString([]byte(fwComment)), "comment=" + hex.EncodeToString([]byte(fwOldComment))}
 	var out []fwRule
 	for _, l := range strings.Split(string(rules), "\n") {
 		t, ok := strings.CutPrefix(l, "### tuple ### ")
@@ -114,7 +118,7 @@ func ourRules() []fwRule {
 		}
 		// allow udp any 0.0.0.0/0 <sport> <src> in comment=…
 		f := strings.Fields(t)
-		if len(f) >= 8 && f[0] == "allow" && f[1] == "udp" && f[2] == "any" && f[6] == "in" && f[7] == tag &&
+		if len(f) >= 8 && f[0] == "allow" && f[1] == "udp" && f[2] == "any" && f[6] == "in" && slices.Contains(tags, f[7]) &&
 			slices.Contains(discoveryPorts, f[4]) {
 			out = append(out, fwRule{src: f[5], port: f[4]})
 		}
@@ -145,7 +149,7 @@ func (m *model) openFirewallAsk() {
 	lan := localLAN()
 	lines := []string{
 		"Your firewall (ufw) is dropping the answers computers send",
-		"when tidefiles asks who shares files: Windows PCs answer",
+		"when console-places asks who shares files: Windows PCs answer",
 		"from UDP port 3702 (WS-Discovery), older ones from 137",
 		"(NetBIOS). Macs, Linux and NAS boxes (mDNS) already get",
 		"through, and connecting by address always works.",
@@ -156,16 +160,16 @@ func (m *model) openFirewallAsk() {
 	for _, a := range ufwArgs(lan) {
 		lines = append(lines, "  "+strings.Join(a[:8], " "))
 	}
-	lines = append(lines, "", "Only UDP from your own network, from those two ports",
-		"(labelled \"tidefiles discovery\"). To undo it later: Browse",
-		"network again, then f removes them.")
+	lines = append(lines, "", "Only UDP from your own network, from those two ports,",
+		"labelled \""+fwComment+"\". To undo it later:",
+		"Browse network again, then f removes them.")
 	m.openConfirm("allowfw", "firewall", lines, []string{lan})
 }
 
-// openFirewallRemove asks before removing the rules tidefiles added.
+// openFirewallRemove asks before removing the rules console-places added.
 func (m *model) openFirewallRemove() {
 	lines := []string{
-		"tidefiles added firewall (ufw) rules that let Windows PCs",
+		"console-places added firewall (ufw) rules that let Windows PCs",
 		"answer when you browse the network. Remove them?",
 		"",
 		"Browsing will still find Macs, Linux and NAS boxes, and",
@@ -190,14 +194,14 @@ func (m *model) allowDiscovery(lan string) tea.Cmd {
 	return m.runUfw("letting discovery answers from "+lan+" through ufw", ufwArgs(lan), false)
 }
 
-// removeDiscovery removes the rules tidefiles added.
+// removeDiscovery removes the rules console-places added.
 func (m *model) removeDiscovery() tea.Cmd {
 	rs := ourRules()
 	if len(rs) == 0 {
-		m.setMsg("firewall: no rules from tidefiles to remove", false)
+		m.setMsg("firewall: no rules from console-places to remove", false)
 		return nil
 	}
-	return m.runUfw("removing the discovery rules tidefiles added to ufw", ufwDeleteArgs(rs), true)
+	return m.runUfw("removing the discovery rules console-places added to ufw", ufwDeleteArgs(rs), true)
 }
 
 // runUfw runs ufw commands as root (pkexec or sudo, terminal handed over).
@@ -238,7 +242,7 @@ func (m *model) onFirewall(msg firewallMsg) tea.Cmd {
 		return nil
 	}
 	if msg.removed {
-		m.setMsg("firewall: removed the discovery rules tidefiles added", false)
+		m.setMsg("firewall: removed the discovery rules console-places added", false)
 		return nil
 	}
 	m.setMsg("firewall: discovery answers allowed from your network", false)

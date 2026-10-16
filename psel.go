@@ -2,7 +2,7 @@ package main
 
 // Mouse text selection in the preview pane. A terminal reports the mouse for
 // the whole window or not at all, so its own selection would run across all
-// three panes; tidefiles keeps the mouse and selects inside the preview
+// three panes; console-places keeps the mouse and selects inside the preview
 // itself. Dragging highlights text; releasing copies it to the clipboard as
 // the file's own text: tabs intact and wrapped lines joined. A click without
 // a drag, a key, or a different preview clears the selection.

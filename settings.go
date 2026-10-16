@@ -11,7 +11,7 @@ import (
 // Values of config.TabsOnStart.
 const (
 	tabsRestoreAlways   = ""         // reopen last session's tabs every time
-	tabsRestoreNoFolder = "nofolder" // only when tidefiles is started without a folder
+	tabsRestoreNoFolder = "nofolder" // only when console-places is started without a folder
 	tabsRestoreNever    = "never"
 )
 

@@ -167,7 +167,7 @@ var bindingGroups = []bindingGroup{
 		{actEdit, []string{"e"}, "e", "edit in $EDITOR"},
 		{actOpenWith, []string{"o"}, "o", "open with…"},
 		{actTerminal, []string{"t"}, "t", "terminal here"},
-		{actNewWindow, []string{"ctrl+n"}, "ctrl+n", "new window (tidefiles here, in a new terminal)"},
+		{actNewWindow, []string{"ctrl+n"}, "ctrl+n", "new window (console-places here, in a new terminal)"},
 	}},
 	{"View", []binding{
 		{actHidden, []string{"."}, ".", "show / hide hidden files"},
@@ -187,7 +187,7 @@ var bindingGroups = []bindingGroup{
 	}},
 	{"App", []binding{
 		{actHelp, []string{"?"}, "?", "help: every action (type to search, enter runs)"},
-		{actUpdate, []string{"U"}, "U", "update tidefiles: check, install, or restart into a new version"},
+		{actUpdate, []string{"U"}, "U", "update console-places: check, install, or restart into a new version"},
 		{actQuit, []string{"q", "ctrl+c"}, "q", "quit"},
 	}},
 }

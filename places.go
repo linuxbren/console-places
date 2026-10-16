@@ -12,7 +12,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// Places (b) is tidefiles' sidebar, in Nautilus' sections: the usual
+// Places (b) is console-places' sidebar, in Nautilus' sections: the usual
 // folders and the Trash, bookmarks, drives (mounted or not) and network
 // locations (connected, saved, or a new one).
 
@@ -365,7 +365,7 @@ func (m *model) removeBookmark(path string) {
 }
 
 // leaveMount moves every tab out of a folder about to be unmounted, so it
-// isn't kept busy, and tidefiles' own working folder too.
+// isn't kept busy, and console-places' own working folder too.
 func (m *model) leaveMount(mp string) {
 	if mp == "" {
 		return

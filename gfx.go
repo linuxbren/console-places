@@ -24,11 +24,11 @@ const (
 func (p gfxProto) String() string { return [...]string{"blocks", "sixel", "kitty"}[p] }
 
 // detectProto picks the best image protocol for the running terminal.
-// TIDEFILES_IMAGES=blocks|sixel|kitty overrides detection. Otherwise the
+// CONSOLE_PLACES_IMAGES=blocks|sixel|kitty overrides detection. Otherwise the
 // terminal is asked directly (kitty-graphics probe + device attributes), which
 // works even when $TERM does not name the terminal.
 func detectProto() gfxProto {
-	switch strings.ToLower(os.Getenv("TIDEFILES_IMAGES")) {
+	switch strings.ToLower(envVar("IMAGES")) {
 	case "blocks", "off":
 		return protoBlocks
 	case "sixel":
@@ -51,7 +51,7 @@ func detectProto() gfxProto {
 // The wait ends as soon as the answer arrives (normally a few milliseconds),
 // but a terminal that is still starting up can take much longer: foot opened
 // through Omarchy's launcher (uwsm-app, as a floating window) has answered
-// after the old 250 ms limit, which silently dropped tidefiles to blurry
+// after the old 250 ms limit, which silently dropped console-places to blurry
 // half-block images for the whole session, and its late answer then arrived
 // as keystrokes.
 const probeTimeout = 1500 * time.Millisecond

@@ -283,7 +283,7 @@ func TestRipgrepArgsMode(t *testing.T) {
 }
 
 func TestJumpHighlightClearsWhenLeavingFile(t *testing.T) {
-	t.Setenv("TIDEFILES_IMAGES", "blocks") // no terminal probing in tests
+	t.Setenv("CONSOLE_PLACES_IMAGES", "blocks") // no terminal probing in tests
 	dir := t.TempDir()
 	mkfile(t, filepath.Join(dir, "a.txt"), "one\ntwo\nthree\n")
 	mkfile(t, filepath.Join(dir, "b.txt"), "other\n")

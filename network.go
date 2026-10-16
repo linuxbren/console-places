@@ -5,7 +5,7 @@ package main
 // with ssh, NFS Unix exports. gvfs mounts are user mounts (no root) and are
 // shared with Nautilus, including passwords saved in the keyring. gio asks
 // for anything else it needs (user, domain, password, a host key question) on
-// stdin; tidefiles relays each prompt into a modal and sends the answer back.
+// stdin; console-places relays each prompt into a modal and sends the answer back.
 // Passwords pass straight through and are never stored; the server address
 // is remembered in places.
 
@@ -32,7 +32,7 @@ const maxServers = 10
 // guestSchemes can log in anonymously (gio mount -a).
 var guestSchemes = map[string]bool{"smb": true, "ftp": true, "ftps": true, "dav": true, "davs": true}
 
-// netSchemes are the gvfs backends tidefiles connects to.
+// netSchemes are the gvfs backends console-places connects to.
 var netSchemes = map[string]bool{"smb": true, "sftp": true, "nfs": true, "ftp": true, "ftps": true, "dav": true, "davs": true, "afp": true}
 
 // normalizeServer turns what someone types into a gvfs location:
@@ -593,7 +593,7 @@ func mountUsers(path string) []string {
 		if !uses {
 			continue
 		}
-		name := "tidefiles"
+		name := "console-places"
 		if pid != self {
 			b, _ := os.ReadFile(pd + "/comm")
 			name = strings.TrimSpace(string(b)) + " (" + strconv.Itoa(pid) + ")"

@@ -1,4 +1,4 @@
-module github.com/linuxbren/tidefiles
+module github.com/linuxbren/console-places
 
 go 1.27.0
 

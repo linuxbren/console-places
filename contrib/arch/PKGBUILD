@@ -2,15 +2,17 @@
 #
 # Build from source with:  makepkg -si   (in this folder)
 # To update: bump pkgver, run `updpkgsums`, then `makepkg --printsrcinfo > .SRCINFO`.
-pkgname=tidefiles
+pkgname=console-places
 pkgver=0.10.0
 pkgrel=1
 pkgdesc="Keyboard-first terminal file manager that follows your Omarchy theme"
 arch=('x86_64' 'aarch64')
-url="https://github.com/linuxbren/tidefiles"
+url="https://github.com/linuxbren/console-places"
 license=('MIT')
 depends=('glibc' 'wl-clipboard' 'glib2')
 makedepends=('go')
+conflicts=('tidefiles')
+replaces=('tidefiles')  # its name until v0.11
 optdepends=(
   'ripgrep: faster search inside files'
   '7zip: archives bsdtar cannot open'
@@ -44,7 +46,7 @@ build() {
   export GOPATH="$srcdir/gopath"
   export CGO_CPPFLAGS="$CPPFLAGS" CGO_CFLAGS="$CFLAGS" CGO_CXXFLAGS="$CXXFLAGS" CGO_LDFLAGS="$LDFLAGS"
   export GOFLAGS="-buildmode=pie -trimpath -mod=readonly -modcacherw"
-  go build -ldflags "-linkmode=external -X main.version=v$pkgver" -o tidefiles .
+  go build -ldflags "-linkmode=external -X main.version=v$pkgver" -o console-places .
 }
 
 check() {
@@ -55,7 +57,7 @@ check() {
 
 package() {
   cd "$pkgname-$pkgver"
-  install -Dm755 tidefiles "$pkgdir/usr/bin/tidefiles"
+  install -Dm755 console-places "$pkgdir/usr/bin/console-places"
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
   install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
   # Optional Omarchy/Hyprland snippet for SUPER+C (see README); never applied automatically.

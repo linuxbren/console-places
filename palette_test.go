@@ -134,7 +134,7 @@ func TestPaletteRunsActionsAndRemembers(t *testing.T) {
 	if p.head[0] != "Recent" || !strings.HasPrefix(p.all[p.rows[0]].title, "Sort by size") || p.all[p.rows[1]].title != "Hide hidden files" {
 		t.Fatalf("recent: %v", paletteTitles(m))
 	}
-	saved, _ := os.ReadFile(os.Getenv("TIDEFILES_CONFIG"))
+	saved, _ := os.ReadFile(os.Getenv("CONSOLE_PLACES_CONFIG"))
 	if !strings.Contains(string(saved), `"recent"`) || !strings.Contains(string(saved), "sort:size") {
 		t.Fatalf("recent not saved: %s", saved)
 	}
@@ -153,7 +153,7 @@ func TestPaletteRunsActionsAndRemembers(t *testing.T) {
 
 func TestPaletteImageMode(t *testing.T) {
 	m := testModel(t, t.TempDir())
-	t.Setenv("TIDEFILES_IMAGES", "") // let the setting decide
+	t.Setenv("CONSOLE_PLACES_IMAGES", "") // let the setting decide
 	m.setImageMode("sixel")
 	if m.proto != protoSixel || m.cfg.ImageMode != "sixel" {
 		t.Fatalf("sixel: %v %q", m.proto, m.cfg.ImageMode)

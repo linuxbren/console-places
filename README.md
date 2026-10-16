@@ -1,9 +1,12 @@
-# tidefiles
+# console-places
 
 A keyboard-first terminal file manager for Linux, built with Bubble Tea. Its UI components came
 originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere](https://github.com/allisonhere).
 
-![tidefiles on Omarchy (Catppuccin theme): parent folder, current folder and a syntax-highlighted preview of main.go](docs/screenshots/browse.png)
+**Formerly tidefiles.** It was renamed console-places in v0.11; see
+[Coming from tidefiles](#coming-from-tidefiles).
+
+![console-places on Omarchy (Catppuccin theme): parent folder, current folder and a syntax-highlighted preview of main.go](docs/screenshots/browse.png)
 
 <table>
   <tr>
@@ -69,7 +72,7 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
   bookmarks, back/forward history, filter, fuzzy find across subfolders, search inside files (ripgrep when installed; `alt+r` for regex), sort, terminal here, mouse support.
 - **Tabs** — `ctrl+t` opens a tab on the current folder, `ctrl+w` closes it, `tab`/`shift+tab` or `1`…`9`
   switch; each tab keeps its own folder, selection and history. Tabs are reopened next time on the tab
-  you were last in; started with a folder (`tidefiles ~/Music`), that folder's tab is active (added if
+  you were last in; started with a folder (`console-places ~/Music`), that folder's tab is active (added if
   none is open there). Settings can restore tabs only when no folder is given, or never.
 - **Settings page** — `S` lists every preference (tabs at startup, theme, hidden files, sort, preview
   pane, word wrap, markdown, image previews, places in the file list, video previews, updates); `←`/`→` change one, and it's saved straight away.
@@ -103,12 +106,12 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
     and your desktop asks for a password where one is needed.
   - **Network** — `c` connects to a server: `smb://` (Windows, Mac, Samba), `sftp://` (anything with
     ssh), `nfs://`, `ftp://`, `dav://`; `\\pc\share` and `user@host:/path` work too. Passwords and
-    other questions are asked inside tidefiles; `ctrl+s` at the password saves it in your keyring,
+    other questions are asked inside console-places; `ctrl+s` at the password saves it in your keyring,
     where Nautilus finds it too. **Browse network…** finds computers that share files (mDNS,
     WS-Discovery, NetBIOS) and lists a server's shares; with Tailscale installed, **Tailscale…**
     (under Network) lists your tailnet's online computers at once (by MagicDNS name, over SFTP or
     SMB), and Browse network… adds them under their own heading. Servers you connect to stay listed; `u`
-    disconnects (if something is still using it, tidefiles names what and forces it on a second
+    disconnects (if something is still using it, console-places names what and forces it on a second
     try), `d` forgets one. Connections go through gvfs, as in Nautilus, so they're
     shared with it. A connected computer's preview shows its address, the protocol, who you're signed
     in as and its free space, and folders on it are titled `computer: /path`.
@@ -116,47 +119,47 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
     the kernel's own client (`mount.cifs` / `mount.nfs`) at a folder like `/mnt/photos`, via pkexec
     or sudo: faster, and visible to every program. The password goes in a credentials file that's
     deleted right after mounting.
-- **New window** — `ctrl+n` opens tidefiles in this folder in a new terminal window
+- **New window** — `ctrl+n` opens console-places in this folder in a new terminal window
   (`xdg-terminal-exec`, the way Omarchy launches terminals, or `$TERMINAL`).
 
 Drives use `udisks2` (`udisksctl`) and `lsblk`. Network locations need `gvfs` plus its backends
 (`gvfs-smb`, `gvfs-nfs`; `gvfs-backends` on Debian/Ubuntu); browsing uses `avahi` and `smbclient`;
-system mounts need `cifs-utils` or `nfs-utils`. When one is missing, tidefiles says what it's for
+system mounts need `cifs-utils` or `nfs-utils`. When one is missing, console-places says what it's for
 and offers to install it with your package manager (as root, after you say yes). If your firewall
 (ufw) drops the answers Windows PCs send while browsing, **Browse network…** explains and offers
 (`f`) to allow just those: UDP from your own network, from the discovery ports 3702 and 137.
-Once they're in, `f` in the same place offers to remove them again (only the rules tidefiles
-added, found by their "tidefiles discovery" label).
+Once they're in, `f` in the same place offers to remove them again (only the rules console-places
+added, found by their "console-places discovery" label).
 
 Image previews use `imagemagick` (jpeg/svg/heic/…), `poppler` (PDF), `ffmpegthumbnailer` (video),
 `libarchive` (archives) and `ffmpeg` (playing videos, audio tags) when installed. Settings (`S`) →
-*Video previews* chooses: play after a moment (default), play with `alt+p` only, or a still frame. Set `TIDEFILES_IMAGES=blocks|sixel|kitty`
+*Video previews* chooses: play after a moment (default), play with `alt+p` only, or a still frame. Set `CONSOLE_PLACES_IMAGES=blocks|sixel|kitty`
 to override terminal detection.
 
 ## Install
 
-tidefiles runs on **Linux** (x86_64 and arm64). It's built on Omarchy (Hyprland + foot) and works on
+console-places runs on **Linux** (x86_64 and arm64). It's built on Omarchy (Hyprland + foot) and works on
 other desktops and in plain terminals too.
 The system clipboard uses `wl-clipboard` on Wayland, or `xclip`/`xsel` on X11; without one, copy and
-paste still work inside tidefiles. Outside Omarchy it uses its built-in themes (`T` picks one). Pick one of:
+paste still work inside console-places. Outside Omarchy it uses its built-in themes (`T` picks one). Pick one of:
 
 **Download a release binary** (no Go needed; static, x86_64 or arm64):
 
 ```sh
 arch=amd64   # or arm64
-curl -L https://github.com/linuxbren/tidefiles/releases/latest/download/tidefiles_linux_$arch.tar.gz | tar xz tidefiles
-install -Dm755 tidefiles ~/.local/bin/tidefiles
+curl -L https://github.com/linuxbren/console-places/releases/latest/download/console-places_linux_$arch.tar.gz | tar xz console-places
+install -Dm755 console-places ~/.local/bin/console-places
 ```
 
-Each [release](https://github.com/linuxbren/tidefiles/releases) also lists a `checksums.txt` to verify the download.
+Each [release](https://github.com/linuxbren/console-places/releases) also lists a `checksums.txt` to verify the download.
 
 **Debian / Ubuntu, Fedora / openSUSE, Alpine:** download the package for your system from the
-[latest release](https://github.com/linuxbren/tidefiles/releases/latest) and install it:
+[latest release](https://github.com/linuxbren/console-places/releases/latest) and install it:
 
 ```sh
-sudo apt install ./tidefiles_amd64.deb      # Debian, Ubuntu
-sudo dnf install ./tidefiles_amd64.rpm      # Fedora (zypper install … on openSUSE)
-sudo apk add --allow-untrusted tidefiles_amd64.apk   # Alpine
+sudo apt install ./console-places_amd64.deb      # Debian, Ubuntu
+sudo dnf install ./console-places_amd64.rpm      # Fedora (zypper install … on openSUSE)
+sudo apk add --allow-untrusted console-places_amd64.apk   # Alpine
 ```
 
 They pull in the optional helpers (`wl-clipboard`, `bsdtar`, `ripgrep`) as recommended packages.
@@ -165,49 +168,57 @@ They pull in the optional helpers (`wl-clipboard`, `bsdtar`, `ripgrep`) as recom
 names from source, runs the tests, and pulls in the dependencies):
 
 ```sh
-git clone https://github.com/linuxbren/tidefiles && cd tidefiles/contrib/arch
+git clone https://github.com/linuxbren/console-places && cd console-places/contrib/arch
 makepkg -si
 ```
 
-**Nix** (flakes): `nix run github:linuxbren/tidefiles`, or add the flake's `packages.default` to your
+**Nix** (flakes): `nix run github:linuxbren/console-places`, or add the flake's `packages.default` to your
 configuration.
 
 **With Go** (1.27 or newer):
 
 ```sh
-go install github.com/linuxbren/tidefiles@latest
+go install github.com/linuxbren/console-places@latest
 ```
 
 The binary lands in `$(go env GOPATH)/bin` (usually `~/go/bin`); make sure that's on your `PATH`.
-Check any of them with `tidefiles --version`.
+Check any of them with `console-places --version`.
 
-**Updates.** Once a day tidefiles checks GitHub for a new release, in the background. A release binary
+**Updates.** Once a day console-places checks GitHub for a new release, in the background. A release binary
 installed as above (in a folder you can write, like `~/.local/bin`) updates itself: it downloads the
 new release, checks it against the release's `checksums.txt`, makes sure it runs, swaps it in, and asks
 whether to restart into it (your tabs come back), with the new features of every release since yours;
 say no and it starts next time. Packages, the Arch
-package, Nix and `go install` are never replaced behind their backs: tidefiles tells you a new version
+package, Nix and `go install` are never replaced behind their backs: console-places tells you a new version
 is out and the command that updates it. `U` checks, installs or restarts by hand. Settings (`S`) →
 Updates: install automatically (the default), notify only, or off.
 
+**Coming from tidefiles.** Nothing to do for a release binary: it updates itself as usual and then
+renames itself `console-places`, leaving `tidefiles` as a link so both commands work. Your settings
+move from `~/.config/tidefiles` to `~/.config/console-places`, firewall rules it added are still
+recognised, and `TIDEFILES_*` variables are still read. The `console-places` packages replace the
+`tidefiles` ones; with `go install`, install `github.com/linuxbren/console-places@latest` and remove
+the old `tidefiles` binary. If you added the `SUPER+C` snippet below, replace it with the new one:
+the window title now starts with `console-places — `.
+
 **Optional — `SUPER+C` on Omarchy.** `SUPER+V` and `SUPER+X` work out of the box, but foot keeps
-the key Omarchy's `SUPER+C` sends to terminals for itself. To make `SUPER+C` copy in tidefiles,
+the key Omarchy's `SUPER+C` sends to terminals for itself. To make `SUPER+C` copy in console-places,
 append [`contrib/omarchy-super-c.lua`](contrib/omarchy-super-c.lua) (also in the release archives, and at
-`/usr/share/tidefiles/omarchy-super-c.lua` with the Arch package) to `~/.config/hypr/bindings.lua`
+`/usr/share/console-places/omarchy-super-c.lua` with the Arch package) to `~/.config/hypr/bindings.lua`
 (Hyprland reloads on save; check with `hyprctl configerrors`). It only affects windows titled
-`tidefiles — …`; every other window keeps Omarchy's default. Without it, plain `c` copies.
+`console-places — …`; every other window keeps Omarchy's default. Without it, plain `c` copies.
 
 ## Run
 
 ```sh
-tidefiles [dir]
-tidefiles --cwd-file /tmp/tidefiles.cwd   # write final dir on quit, for a cd-on-exit shell wrapper
+console-places [dir]
+console-places --cwd-file /tmp/console-places.cwd   # write final dir on quit, for a cd-on-exit shell wrapper
 ```
 
 From a checkout, `go run . [dir]` works the same way.
 
 Settings (theme, hidden files, wrap, sort, bookmarks, servers you connected to) are remembered in
-`~/.config/tidefiles/config.json`.
+`~/.config/console-places/config.json`.
 
 ## Keys
 

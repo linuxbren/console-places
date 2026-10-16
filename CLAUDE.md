@@ -1,4 +1,4 @@
-# tidefiles
+# console-places
 
 Keyboard-first terminal file manager (Go, Bubble Tea, lipgloss). **Linux only**: never add macOS or
 Windows code, builds or docs. Built on Omarchy (Hyprland + foot) and must also work off Omarchy, on X11
@@ -27,7 +27,7 @@ One `main` package, one file per concern:
   `alt+p`): ffmpeg decodes muted RGBA at preview size (`-re`) into a pipe, a goroutine encodes frames
   (shared `frameEncoder`); the `*videoRun` pointer is the generation id; `syncVideo` after every
   update kills ffmpeg when the preview changes, hides or is covered (pause = kill, resume = restart
-  at the position). `psel.go`: mouse drag selection inside the preview (tidefiles keeps the
+  at the position). `psel.go`: mouse drag selection inside the preview (console-places keeps the
   mouse, since terminals capture it per window); release copies the file's own text via `segments`.
 - Document previews (kind `kindDoc`, built off the UI goroutine): `officedoc.go` (docx/xlsx/pptx,
   ODF and RTF as text, `.msi` via `file`), `peinfo.go` (`.exe`/`.dll` version resource, .NET, and
@@ -43,7 +43,7 @@ One `main` package, one file per concern:
   `places.go` (`b`: sections Places / Bookmarks / Drives / Network; `B` toggles a bookmark);
   `listplaces.go` (opt-in setting: places rows below every folder's files, the Trash row generalised;
   drives/network from a background scan, never read while drawing); `clipboard.go` (Wayland ext-data-control owner, X11 xclip/xsel,
-  wl-copy fallback); `config.go` (`~/.config/tidefiles/config.json`); `internal/omarchy` theme reading.
+  wl-copy fallback); `config.go` (`~/.config/console-places/config.json`); `internal/omarchy` theme reading.
 - Drives and network (all listed in places): `drives.go` lsblk → drives that aren't the running
   system, mounted/unlocked/unmounted via `udisksctl` (no tty, so polkit asks through the desktop
   agent). `network.go` connects with `gio mount` (gvfs, like Nautilus), relaying each prompt gio
@@ -60,12 +60,17 @@ One `main` package, one file per concern:
   `install.go` turns a `missingError` into an offer to install the package (per package manager).
   Root actions share `privileged()` + `runPrivileged` (pkexec/sudo, terminal handed over).
   Tests stub every system lookup in `TestMain` (lsblk, gvfs, mounts, keyring, network, ufw, pm).
+- `rename.go`: console-places was **tidefiles** until v0.11. Old installs keep working: the settings
+  folder is moved, `TIDEFILES_*` variables are read (`envVar`), rules labelled "tidefiles discovery"
+  are still ours, and a self-updating binary named tidefiles renames itself (leaving a tidefiles link).
+  Old copies update from `tidefiles_linux_<arch>.tar.gz` (a second GoReleaser build) and only accept
+  `--version` = "tidefiles vX", so the binary says that when started under the old name.
 - `update.go` daily release check + self-update (`U`; Settings → Updates). Only a release binary in a
   user-writable folder replaces itself (checksum-verified, `--version` sanity run, atomic rename,
-  then a restart prompt that re-execs with `TIDEFILES_RESTARTED`); packages / Nix / `go install`
+  then a restart prompt that re-execs with `CONSOLE_PLACES_RESTARTED`); packages / Nix / `go install`
   get a hint; dev builds never check. It reads the releases list, and the restart prompt lists the
   bold `## New` headlines of every release since the running version (RELEASING.md). Tests use
-  `TIDEFILES_UPDATE_URL` (TestMain points it nowhere).
+  `CONSOLE_PLACES_UPDATE_URL` (TestMain points it nowhere).
 
 ## Build and test
 
@@ -74,10 +79,10 @@ go build ./... && go vet ./... && go test -race -count=1 ./...
 ```
 
 - `gofmt` must be clean (CI checks it). Go 1.27; keep `go.mod`'s `go` line at or below Arch's Go.
-- Tests must never touch the user's real config or trash: `TestMain` points `TIDEFILES_CONFIG` and
-  `XDG_DATA_HOME` at temp dirs. Model tests use `testModel()` (sets `TIDEFILES_IMAGES=blocks`).
+- Tests must never touch the user's real config or trash: `TestMain` points `CONSOLE_PLACES_CONFIG` and
+  `XDG_DATA_HOME` at temp dirs. Model tests use `testModel()` (sets `CONSOLE_PLACES_IMAGES=blocks`).
   External tools are faked with scripts on `PATH` (`fakeTool`); tests skip if bsdtar/rg are missing.
-- Hands-on checks: drive the binary in a private tmux (`tmux -L <name>`) with `TIDEFILES_CONFIG` set
+- Hands-on checks: drive the binary in a private tmux (`tmux -L <name>`) with `CONSOLE_PLACES_CONFIG` set
   to a scratch file (quitting saves tabs into the config). Never open windows or type into the user's
   desktop; for real-terminal screenshots see the vault note (headless Hyprland output).
 - After `go.mod`/`go.sum` changes, update `vendorHash` in `flake.nix` (CI's nix job fails otherwise).
@@ -88,7 +93,7 @@ go build ./... && go vet ./... && go test -race -count=1 ./...
   by Conductor is confirmed with Brenden first). v0.10.0 was released 2026-10-15. Push with
   `GH_TOKEN=$(gh auth token --user linuxbren)`; never `gh auth switch`.
 - Every release is a normal GitHub release, never a pre-release. Steps are in `RELEASING.md`
-  (GoReleaser builds tarballs, deb/rpm/apk, checksums and the AUR tidefiles-bin PKGBUILD; then bump
+  (GoReleaser builds tarballs, deb/rpm/apk, checksums and the AUR console-places-bin PKGBUILD; then bump
   the flake version and `contrib/arch/PKGBUILD`).
 - Packaging channels: release assets, `contrib/arch` (makepkg), Nix flake, `go install`. AUR waits
   for registration to reopen; Cloudsmith apt/dnf is next; Homebrew skipped.

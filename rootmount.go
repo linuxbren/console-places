@@ -33,7 +33,7 @@ type rootMount struct {
 	password string
 }
 
-// sudoTool is how tidefiles becomes root: pkexec, else sudo.
+// sudoTool is how console-places becomes root: pkexec, else sudo.
 var sudoTool = func() (string, error) {
 	for _, t := range []string{"pkexec", "sudo"} {
 		if p, err := exec.LookPath(t); err == nil {
@@ -145,7 +145,7 @@ var runPrivileged = func(c *exec.Cmd, done func(error) tea.Msg) tea.Cmd {
 // arguments as root through the tool in $2. Only the command's own errors go
 // to the file in $3 (the screen is redrawn afterwards); the password prompt
 // stays on the terminal.
-const privScript = `printf '\ntidefiles: %s (as root)\n\n' "$1"
+const privScript = `printf '\nconsole-places: %s (as root)\n\n' "$1"
 tool=$2 err=$3
 shift 3
 exec "$tool" /bin/sh -c '"$@" 2>"$0"' "$err" "$@"
@@ -156,9 +156,9 @@ exec "$tool" /bin/sh -c '"$@" 2>"$0"' "$err" "$@"
 // even root may not open a file someone else owns in a sticky folder, so
 // `2>file` would fail and the command never run. done removes the folder.
 func privErrFile(name string) (file string, done func(), err error) {
-	dir, err := os.MkdirTemp(os.Getenv("XDG_RUNTIME_DIR"), "tidefiles-"+name+"-")
+	dir, err := os.MkdirTemp(os.Getenv("XDG_RUNTIME_DIR"), "console-places-"+name+"-")
 	if err != nil {
-		dir, err = os.MkdirTemp("", "tidefiles-"+name+"-")
+		dir, err = os.MkdirTemp("", "console-places-"+name+"-")
 	}
 	if err != nil {
 		return "", nil, err
@@ -186,9 +186,9 @@ type rootDoneMsg struct {
 
 // mountAsRoot mounts the share; the result arrives as rootDoneMsg.
 func (m *model) mountAsRoot(rm *rootMount) tea.Cmd {
-	dir, err := os.MkdirTemp(os.Getenv("XDG_RUNTIME_DIR"), "tidefiles-mount-")
+	dir, err := os.MkdirTemp(os.Getenv("XDG_RUNTIME_DIR"), "console-places-mount-")
 	if err != nil {
-		dir, err = os.MkdirTemp("", "tidefiles-mount-")
+		dir, err = os.MkdirTemp("", "console-places-mount-")
 	}
 	if err != nil {
 		m.setMsg("system mount: "+err.Error(), true)

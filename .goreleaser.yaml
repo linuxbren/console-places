@@ -1,15 +1,27 @@
 # Release builds: pushing a v* tag runs .github/workflows/release.yml, which
 # runs GoReleaser to build static Linux binaries and packages and attach
 # them, with checksums, to the GitHub release. See RELEASING.md.
-# tidefiles is Linux only.
+# console-places is Linux only.
 version: 2
-project_name: tidefiles
+project_name: console-places
 
 before:
   hooks:
     - go mod download
 
 builds:
+  - id: console-places
+    binary: console-places
+    env:
+      - CGO_ENABLED=0
+    goos: [linux]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w -X main.version=v{{ .Version }}
+  # The same program named tidefiles (its name until v0.11), for the
+  # tidefiles_linux_<arch>.tar.gz that copies of tidefiles update from: they
+  # look for that archive and a "tidefiles" binary in it (rename.go).
   - id: tidefiles
     binary: tidefiles
     env:
@@ -21,7 +33,8 @@ builds:
       - -s -w -X main.version=v{{ .Version }}
 
 archives:
-  - id: tidefiles
+  - id: console-places
+    ids: [console-places]
     formats: [tar.gz]
     # No version in the name, so .../releases/latest/download/<name> always works.
     name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
@@ -30,17 +43,27 @@ archives:
       - README.md
       - contrib/omarchy-super-c.lua
 
+  - id: tidefiles
+    ids: [tidefiles]
+    formats: [tar.gz]
+    name_template: "tidefiles_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+
 checksum:
   name_template: checksums.txt
   algorithm: sha256
 
 nfpms:
   - id: packages
-    package_name: tidefiles
+    ids: [console-places]
+    package_name: console-places
+    replaces: [tidefiles]
+    conflicts: [tidefiles]
     file_name_template: "{{ .PackageName }}_{{ .Arch }}"
     vendor: linuxbren
     maintainer: linuxbren <linuxbren@gmail.com>
-    homepage: https://github.com/linuxbren/tidefiles
+    homepage: https://github.com/linuxbren/console-places
     description: Keyboard-first terminal file manager with previews, tabs and archive browsing
     license: MIT
     formats: [deb, rpm, apk]
@@ -48,11 +71,11 @@ nfpms:
     section: utils
     contents:
       - src: README.md
-        dst: /usr/share/doc/tidefiles/README.md
+        dst: /usr/share/doc/console-places/README.md
       - src: LICENSE
-        dst: /usr/share/licenses/tidefiles/LICENSE
+        dst: /usr/share/licenses/console-places/LICENSE
       - src: contrib/omarchy-super-c.lua
-        dst: /usr/share/tidefiles/omarchy-super-c.lua
+        dst: /usr/share/console-places/omarchy-super-c.lua
     # Optional helpers (clipboard, archives, faster search, previews, drives and
     # network places), under
     # each distro's own package names.
@@ -66,17 +89,18 @@ nfpms:
       apk:
         recommends: [wl-clipboard, libarchive-tools, ripgrep]
 
-# AUR "tidefiles-bin", built from the release tarballs. AUR registration is
+# AUR "console-places-bin", built from the release tarballs. AUR registration is
 # closed for now, so the PKGBUILD is only generated (dist/aur/); to publish,
 # set skip_upload: false and add the AUR_KEY secret (see RELEASING.md).
 aurs:
-  - name: tidefiles-bin
-    homepage: https://github.com/linuxbren/tidefiles
+  - name: console-places-bin
+    ids: [console-places]
+    homepage: https://github.com/linuxbren/console-places
     description: Keyboard-first terminal file manager with previews, tabs and archive browsing (binary release)
     maintainers: ["linuxbren <linuxbren@gmail.com>"]
     license: MIT
-    provides: [tidefiles]
-    conflicts: [tidefiles]
+    provides: [console-places]
+    conflicts: [console-places, tidefiles, tidefiles-bin]
     depends: [wl-clipboard]
     optdepends:
       - "ripgrep: faster search inside files"
@@ -94,14 +118,14 @@ aurs:
       - "smbclient: list the shares on a server"
       - "cifs-utils: system (root) SMB mounts"
       - "nfs-utils: system (root) NFS mounts"
-    git_url: "ssh://aur@aur.archlinux.org/tidefiles-bin.git"
+    git_url: "ssh://aur@aur.archlinux.org/console-places-bin.git"
     private_key: "{{ .Env.AUR_KEY }}"
     skip_upload: true
     package: |-
-      install -Dm755 tidefiles "${pkgdir}/usr/bin/tidefiles"
-      install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/tidefiles-bin/LICENSE"
-      install -Dm644 README.md "${pkgdir}/usr/share/doc/tidefiles-bin/README.md"
-      install -Dm644 contrib/omarchy-super-c.lua "${pkgdir}/usr/share/tidefiles/omarchy-super-c.lua"
+      install -Dm755 console-places "${pkgdir}/usr/bin/console-places"
+      install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/console-places-bin/LICENSE"
+      install -Dm644 README.md "${pkgdir}/usr/share/doc/console-places-bin/README.md"
+      install -Dm644 contrib/omarchy-super-c.lua "${pkgdir}/usr/share/console-places/omarchy-super-c.lua"
 
 changelog:
   disable: true # release notes are written by hand (gh release edit)
@@ -109,7 +133,7 @@ changelog:
 release:
   github:
     owner: linuxbren
-    name: tidefiles
+    name: console-places
   name_template: "v{{ .Version }}"
   prerelease: "false" # every release is a normal release (shows as Latest)
   mode: keep-existing # never overwrite notes already on the release

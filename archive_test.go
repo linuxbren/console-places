@@ -259,14 +259,14 @@ func TestExtractRefusesPathTraversal(t *testing.T) {
 	if exists(filepath.Join(root, "escaped.txt")) {
 		t.Fatal("a ../ member was written outside the destination")
 	}
-	if leftovers, _ := filepath.Glob(filepath.Join(dir, ".tidefiles-extract-*")); len(leftovers) > 0 {
+	if leftovers, _ := filepath.Glob(filepath.Join(dir, ".console-places-extract-*")); len(leftovers) > 0 {
 		t.Fatalf("temp folder left behind: %v", leftovers)
 	}
 }
 
 func TestBrowseArchiveInModel(t *testing.T) {
 	needBsdtar(t)
-	t.Setenv("TIDEFILES_IMAGES", "blocks")
+	t.Setenv("CONSOLE_PLACES_IMAGES", "blocks")
 	dir := t.TempDir()
 	writeTestZip(t, filepath.Join(dir, "pack.zip"), map[string]string{"inner/note.txt": "hello", "top.txt": "t"})
 	cfg := defaultConfig()

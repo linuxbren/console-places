@@ -1,5 +1,5 @@
 {
-  description = "tidefiles: keyboard-first terminal file manager";
+  description = "console-places: keyboard-first terminal file manager";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
@@ -13,8 +13,8 @@
     {
       packages = forAllSystems (pkgs: rec {
         # go.mod asks for Go 1.27, newer than nixpkgs' default go.
-        tidefiles = pkgs.buildGo127Module {
-          pname = "tidefiles";
+        console-places = pkgs.buildGo127Module {
+          pname = "console-places";
           inherit version;
           src = self;
           # Hash of the Go module dependencies: update when go.mod/go.sum change
@@ -24,13 +24,13 @@
           ldflags = [ "-s" "-w" "-X main.version=v${version}" ];
           meta = {
             description = "Keyboard-first terminal file manager with previews, tabs and archive browsing";
-            homepage = "https://github.com/linuxbren/tidefiles";
+            homepage = "https://github.com/linuxbren/console-places";
             license = pkgs.lib.licenses.mit;
-            mainProgram = "tidefiles";
+            mainProgram = "console-places";
             platforms = pkgs.lib.platforms.linux;
           };
         };
-        default = tidefiles;
+        default = console-places;
       });
     };
 }

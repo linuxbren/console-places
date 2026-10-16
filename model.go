@@ -13,7 +13,7 @@ import (
 	"github.com/allisonhere/tideui"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/linuxbren/tidefiles/internal/omarchy"
+	"github.com/linuxbren/console-places/internal/omarchy"
 )
 
 const (
@@ -155,6 +155,9 @@ func newModel(dir string, cfg config, cwdFile string, gfx *gfxOut) model {
 	if m.themeMode == themeOmarchy && !onOmarchy {
 		m.setMsg("Omarchy theme not found, so using "+m.theme.Name+" · T picks a theme", false)
 	}
+	if m.upd.renamed {
+		m.setMsg("tidefiles is now console-places · both commands start it", false)
+	}
 	m.reload("")
 	m.tabs = make([]tabState, 1)
 	return m
@@ -184,10 +187,10 @@ func (m model) Init() tea.Cmd {
 }
 
 // windowTitle names the terminal window. Omarchy's Super+C override in
-// ~/.config/hypr/bindings.lua recognises tidefiles by this prefix.
+// ~/.config/hypr/bindings.lua recognises console-places by this prefix.
 func windowTitle(dir string) string { return titlePrefix + tildePath(dir) }
 
-const titlePrefix = "tidefiles — "
+const titlePrefix = "console-places — "
 
 func tick() tea.Cmd { return tea.Tick(tickInterval, func(time.Time) tea.Msg { return tickMsg{} }) }
 
@@ -935,7 +938,7 @@ func (m model) perform(act action) (model, tea.Cmd) {
 		return m, func() tea.Msg {
 			if err := clipWrite(cut, paths); err == errNoClipboard {
 				// Not an error: there's just no system clipboard (console, ssh…).
-				return statusMsg{done + " (inside tidefiles; no system clipboard here)", false}
+				return statusMsg{done + " (inside console-places; no system clipboard here)", false}
 			} else if err != nil {
 				return statusMsg{done + " here only (system clipboard: " + err.Error() + ")", true}
 			}

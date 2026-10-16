@@ -1,5 +1,5 @@
 // Package omarchy reads the palette of the currently active Omarchy desktop
-// theme so tidefiles can follow it.
+// theme so console-places can follow it.
 //
 // Omarchy stages the active theme under ~/.local/state/omarchy/current/ and
 // ships a resolver, `omarchy-theme-color`, that applies its alias cascade. We

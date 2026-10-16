@@ -233,7 +233,7 @@ func renameAll(dir string, pairs [][2]string) error {
 		}
 	}
 	for i, p := range pairs {
-		tmp[i] = filepath.Join(dir, fmt.Sprintf(".tidefiles-rename-%d-%d", os.Getpid(), i))
+		tmp[i] = filepath.Join(dir, fmt.Sprintf(".console-places-rename-%d-%d", os.Getpid(), i))
 		if err := renameNoReplace(filepath.Join(dir, p[0]), tmp[i]); err != nil {
 			undoTmp()
 			return err

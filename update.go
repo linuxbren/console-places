@@ -1,6 +1,6 @@
 package main
 
-// Updates. Once a day, in the background, tidefiles asks GitHub for the
+// Updates. Once a day, in the background, console-places asks GitHub for the
 // latest release. A release binary in a folder the user can write (the
 // README's ~/.local/bin install) updates itself: it downloads the release
 // archive, checks it against the release's checksums.txt, makes sure the new
@@ -52,21 +52,21 @@ const (
 
 const (
 	updateEvery    = 24 * time.Hour
-	updateRepo     = "linuxbren/tidefiles"
+	updateRepo     = "linuxbren/console-places"
 	releasesPage   = "github.com/" + updateRepo + "/releases"
 	maxArchiveSize = 64 << 20
 	maxNews        = 4  // headlines in the restart prompt
 	maxNewsWidth   = 56 // cells per headline
-	// restartEnv tells a restarted tidefiles to bring its tabs back whatever
+	// restartEnv tells a restarted console-places to bring its tabs back whatever
 	// the "Tabs at startup" setting, and to say which version it now is.
-	restartEnv = "TIDEFILES_RESTARTED"
+	restartEnv = "CONSOLE_PLACES_RESTARTED"
 )
 
 // updateURL is the GitHub API address of the recent releases (a list, so
-// the news covers every version skipped); TIDEFILES_UPDATE_URL replaces it
+// the news covers every version skipped); CONSOLE_PLACES_UPDATE_URL replaces it
 // (tests point it at a local server, which may also answer with one release).
 func updateURL() string {
-	if u := os.Getenv("TIDEFILES_UPDATE_URL"); u != "" {
+	if u := envVar("UPDATE_URL"); u != "" {
 		return u
 	}
 	return "https://api.github.com/repos/" + updateRepo + "/releases?per_page=30"
@@ -92,7 +92,7 @@ func (r *release) asset(name string) string {
 	return ""
 }
 
-// installKind is how this copy of tidefiles was installed, which decides
+// installKind is how this copy of console-places was installed, which decides
 // whether it may replace itself.
 type installKind int
 
@@ -106,14 +106,15 @@ const (
 
 // updateState is what the model knows about updates.
 type updateState struct {
-	kind  installKind
-	hint  string   // for kinds that don't update themselves: how to update
-	exe   string   // the running binary, symlinks resolved
-	busy  bool     // a check or an install is running
-	avail *release // a newer release not yet installed
-	ready string   // a version installed and waiting for a restart
-	news  []string // what is new in avail / ready, newest release first
-	since string   // the version the news starts from
+	kind    installKind
+	hint    string   // for kinds that don't update themselves: how to update
+	exe     string   // the running binary, symlinks resolved
+	busy    bool     // a check or an install is running
+	avail   *release // a newer release not yet installed
+	ready   string   // a version installed and waiting for a restart
+	news    []string // what is new in avail / ready, newest release first
+	since   string   // the version the news starts from
+	renamed bool     // the binary was just renamed from tidefiles (rename.go)
 }
 
 type updateCheckedMsg struct {
@@ -141,13 +142,13 @@ func currentVersion() string {
 	return ""
 }
 
-// detectInstall works out how tidefiles at exe was installed. ldVersion is
+// detectInstall works out how console-places at exe was installed. ldVersion is
 // main.version (set by every release route: GoReleaser, the Arch PKGBUILD,
 // the Nix flake); biVersion is the module version Go embeds.
 func detectInstall(exe, ldVersion, biVersion string) (installKind, string) {
 	switch {
 	case strings.HasPrefix(exe, "/nix/store/"):
-		return installNix, "nix profile upgrade tidefiles  (or update your flake input)"
+		return installNix, "nix profile upgrade console-places  (or update your flake input)"
 	case ldVersion == "":
 		if releaseVersion.MatchString(biVersion) {
 			return installGo, "go install github.com/" + updateRepo + "@latest"
@@ -158,8 +159,12 @@ func detectInstall(exe, ldVersion, biVersion string) (installKind, string) {
 	}
 	// A package's binary is never replaced, even by root, who can write there.
 	if strings.HasPrefix(exe, "/usr/bin/") {
-		if m, _ := filepath.Glob("/var/lib/pacman/local/tidefiles-*"); len(m) > 0 {
-			return installPackage, "rebuild the tidefiles package (makepkg, or your AUR helper)"
+		m, _ := filepath.Glob("/var/lib/pacman/local/console-places-*")
+		if old, _ := filepath.Glob("/var/lib/pacman/local/tidefiles-*"); len(old) > 0 {
+			m = append(m, old...)
+		}
+		if len(m) > 0 {
+			return installPackage, "rebuild the console-places package (makepkg, or your AUR helper)"
 		}
 		return installPackage, "install the new package from " + releasesPage
 	}
@@ -179,7 +184,13 @@ func newUpdateState() updateState {
 		bi = info.Main.Version
 	}
 	kind, hint := detectInstall(exe, version, bi)
-	return updateState{kind: kind, hint: hint, exe: exe}
+	st := updateState{kind: kind, hint: hint, exe: exe}
+	if kind == installSelf {
+		if p := migrateBinary(exe); p != "" {
+			st.exe, st.renamed = p, true
+		}
+	}
+	return st
 }
 
 // newerVersion says whether release version a (vX.Y.Z) is newer than b.
@@ -234,7 +245,7 @@ func httpGet(url string, limit int64) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "tidefiles/"+currentVersion())
+	req.Header.Set("User-Agent", "console-places/"+currentVersion())
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -366,7 +377,7 @@ func installUpdate(rel *release, exe string) tea.Cmd {
 // matches and it runs and reports rel's version, so a failure at any step
 // leaves the old one in place. The running process keeps its old copy.
 func installRelease(rel *release, exe string) error {
-	name := "tidefiles_linux_" + runtime.GOARCH + ".tar.gz"
+	name := "console-places_linux_" + runtime.GOARCH + ".tar.gz"
 	archiveURL, sumsURL := rel.asset(name), rel.asset("checksums.txt")
 	if archiveURL == "" || sumsURL == "" {
 		return fmt.Errorf("%s has no %s for this machine", rel.Tag, name)
@@ -397,7 +408,7 @@ func installRelease(rel *release, exe string) error {
 		return err
 	}
 
-	tmp, err := os.CreateTemp(filepath.Dir(exe), ".tidefiles-update-*")
+	tmp, err := os.CreateTemp(filepath.Dir(exe), ".console-places-update-*")
 	if err != nil {
 		return err
 	}
@@ -415,7 +426,7 @@ func installRelease(rel *release, exe string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, tmp.Name(), "--version").Output()
-	if got := strings.TrimSpace(string(out)); err != nil || got != "tidefiles "+rel.Tag {
+	if got := strings.TrimSpace(string(out)); err != nil || got != "console-places "+rel.Tag {
 		return fmt.Errorf("the new binary did not start correctly (%q); nothing was changed", got)
 	}
 	return os.Rename(tmp.Name(), exe)
@@ -430,12 +441,12 @@ func binaryFromArchive(archive []byte) ([]byte, error) {
 	for {
 		h, err := tr.Next()
 		if err == io.EOF {
-			return nil, errors.New("the release archive has no tidefiles binary")
+			return nil, errors.New("the release archive has no console-places binary")
 		}
 		if err != nil {
 			return nil, err
 		}
-		if h.Typeflag == tar.TypeReg && path.Base(h.Name) == "tidefiles" {
+		if h.Typeflag == tar.TypeReg && path.Base(h.Name) == "console-places" {
 			return io.ReadAll(io.LimitReader(tr, maxArchiveSize))
 		}
 	}
@@ -455,19 +466,19 @@ func (m model) onUpdateChecked(msg updateCheckedMsg) (model, tea.Cmd) {
 		return m, nil
 	case !newerVersion(msg.rel.Tag, cur):
 		if msg.manual {
-			m.setMsg("tidefiles "+cur+" is the latest version", false)
+			m.setMsg("console-places "+cur+" is the latest version", false)
 		}
 		return m, nil
 	}
 	m.upd.avail, m.upd.news, m.upd.since = msg.rel, msg.news, cur
 	switch {
 	case m.upd.kind != installSelf:
-		m.setMsg("tidefiles "+msg.rel.Tag+" is available"+m.upd.newsNote()+" · update with: "+m.upd.hint, false)
+		m.setMsg("console-places "+msg.rel.Tag+" is available"+m.upd.newsNote()+" · update with: "+m.upd.hint, false)
 	case m.cfg.Updates == updatesAuto:
 		m.upd.busy = true
 		return m, installUpdate(msg.rel, m.upd.exe)
 	default:
-		m.setMsg("tidefiles "+msg.rel.Tag+" is available"+m.upd.newsNote()+" · U installs it", false)
+		m.setMsg("console-places "+msg.rel.Tag+" is available"+m.upd.newsNote()+" · U installs it", false)
 	}
 	return m, nil
 }
@@ -484,13 +495,13 @@ func (m model) onUpdateInstalled(msg updateInstalledMsg) (model, tea.Cmd) {
 	if m.modal == nil {
 		m.openRestart()
 	} else {
-		m.setMsg("tidefiles "+msg.version+" is installed · U restarts into it", false)
+		m.setMsg("console-places "+msg.version+" is installed · U restarts into it", false)
 	}
 	return m, nil
 }
 
 func (m *model) openRestart() {
-	lines := append([]string{"tidefiles " + m.upd.ready + " is installed.", ""}, m.upd.newsLines()...)
+	lines := append([]string{"console-places " + m.upd.ready + " is installed.", ""}, m.upd.newsLines()...)
 	m.openConfirm("restart", "update installed", append(lines,
 		"Restart into it now? Your tabs come back.",
 		"",
@@ -508,10 +519,10 @@ func (m model) updateAction() (model, tea.Cmd) {
 		m.setMsg("already checking for updates…", false)
 	case m.upd.avail != nil && m.upd.kind == installSelf:
 		m.upd.busy = true
-		m.setMsg("downloading tidefiles "+m.upd.avail.Tag+"…", false)
+		m.setMsg("downloading console-places "+m.upd.avail.Tag+"…", false)
 		return m, installUpdate(m.upd.avail, m.upd.exe)
 	case m.upd.avail != nil:
-		m.setMsg("tidefiles "+m.upd.avail.Tag+" is available"+m.upd.newsNote()+" · update with: "+m.upd.hint, false)
+		m.setMsg("console-places "+m.upd.avail.Tag+" is available"+m.upd.newsNote()+" · update with: "+m.upd.hint, false)
 	case m.upd.kind == installDev:
 		m.setMsg("this is a development build ("+currentVersion()+"); release builds update themselves", false)
 	default:
@@ -524,7 +535,7 @@ func (m model) updateAction() (model, tea.Cmd) {
 
 // restartInto replaces this process with the (updated) binary, opening dir.
 // It runs after the UI has closed; if it fails, the user just starts
-// tidefiles again.
+// console-places again.
 func restartInto(dir, theme, cwdFile string) {
 	exe, err := os.Executable() // Go drops the " (deleted)" of a replaced binary
 	if err == nil {
@@ -538,5 +549,5 @@ func restartInto(dir, theme, cwdFile string) {
 		args = append(args, "--", dir)
 		err = syscall.Exec(exe, args, append(os.Environ(), restartEnv+"=1"))
 	}
-	fmt.Fprintln(os.Stderr, "tidefiles: the update is installed, but restarting failed ("+err.Error()+"); start tidefiles again to use it")
+	fmt.Fprintln(os.Stderr, "console-places: the update is installed, but restarting failed ("+err.Error()+"); start console-places again to use it")
 }

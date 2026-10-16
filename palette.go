@@ -7,7 +7,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 
@@ -129,7 +128,7 @@ func (m model) commands() []command {
 		{title: "Edit in $EDITOR", synonyms: "vim nvim text", act: actEdit, group: "Files", valid: file},
 		{title: "Open with…", synonyms: "application app program", act: actOpenWith, group: "Files", valid: file},
 		{title: "Terminal here", synonyms: "shell console command line", act: actTerminal, group: "Files"},
-		{title: "New window", synonyms: "open another tidefiles terminal", act: actNewWindow, group: "Files"},
+		{title: "New window", synonyms: "open another console-places terminal", act: actNewWindow, group: "Files"},
 
 		{title: "Filter this folder", synonyms: "narrow search names", act: actFilter, group: "Search"},
 		{title: "Find files and folders", synonyms: "search names fuzzy locate recursive", act: actFind, group: "Search"},
@@ -413,9 +412,9 @@ func (m *model) setImageMode(mode string) {
 	m.setMsg("image previews: "+mode, false)
 }
 
-// imageProto resolves the configured mode; TIDEFILES_IMAGES still wins.
+// imageProto resolves the configured mode; CONSOLE_PLACES_IMAGES still wins.
 func imageProto(mode string, auto gfxProto) gfxProto {
-	if os.Getenv("TIDEFILES_IMAGES") != "" {
+	if envVar("IMAGES") != "" {
 		return auto // detectProto already applied the override
 	}
 	switch mode {

@@ -29,7 +29,7 @@ const (
 	arcPreviewMaxBytes = 64 << 20 // members bigger than this aren't extracted to preview
 )
 
-// archiveSuffixes are the names tidefiles treats as archives, longest first
+// archiveSuffixes are the names console-places treats as archives, longest first
 // so stripping them gives the right stem ("x.tar.gz" → "x").
 var archiveSuffixes = []string{
 	".tar.gz", ".tar.bz2", ".tar.xz", ".tar.zst", ".tar.lz4", ".tar.lz", ".tar.Z",
@@ -314,7 +314,7 @@ func (v *arcView) extractForPreview(m arcMember) (string, error) {
 		return p, nil
 	}
 	if v.tmp == "" {
-		t, err := os.MkdirTemp("", "tidefiles-archive-")
+		t, err := os.MkdirTemp("", "console-places-archive-")
 		if err != nil {
 			return "", err
 		}
@@ -464,7 +464,7 @@ func extractJob(ctx context.Context, p *progress, dir string, archives []string)
 		}
 	}
 	for i, a := range archives {
-		tmp, err := os.MkdirTemp(dir, ".tidefiles-extract-")
+		tmp, err := os.MkdirTemp(dir, ".console-places-extract-")
 		if err != nil {
 			return opResult{err: err}
 		}

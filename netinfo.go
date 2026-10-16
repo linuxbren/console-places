@@ -1,6 +1,6 @@
 package main
 
-// What tidefiles shows about a connected network location: the preview of
+// What console-places shows about a connected network location: the preview of
 // its row in the file list lists the computer, its address, the protocol,
 // who you're signed in as and the space left (from gio and getent, off the
 // UI goroutine, since a slow server or name lookup must not stall it), and

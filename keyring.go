@@ -3,7 +3,7 @@ package main
 // Remembering network passwords. gvfs looks a password up in the keyring
 // (the freedesktop Secret Service: gnome-keyring, KWallet, KeePassXC…) before
 // asking, but it only saves one when the program mounting asks it to, which
-// the gio command never does. So when "remember" is ticked, tidefiles saves
+// the gio command never does. So when "remember" is ticked, console-places saves
 // the password itself after a successful connection, in exactly the form
 // gvfs (and so Nautilus) stores and finds it: the NetworkPassword schema with
 // gvfs' attributes for each protocol (gvfs daemon/gvfskeyring.c and the

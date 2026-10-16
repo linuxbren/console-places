@@ -601,7 +601,7 @@ func (m model) modalOverlay() tideui.Overlay {
 		body = append(body, m.paletteBody(md, inner)...)
 	}
 	return r.SoftPanelOverlay(tideui.SoftPanel{
-		Prefix: "tidefiles", Title: md.title, Width: width,
+		Prefix: "console-places", Title: md.title, Width: width,
 		Content: r.RenderSoftBody(width, strings.Join(body, "\n")),
 	})
 }

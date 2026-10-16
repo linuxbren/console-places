@@ -172,7 +172,7 @@ func restoreTrashedTo(name string) (string, error) {
 	return dst, nil
 }
 
-// newWindowCmd is the command that opens tidefiles in dir in a new terminal
+// newWindowCmd is the command that opens console-places in dir in a new terminal
 // window: the way Omarchy launches terminals (uwsm-app + xdg-terminal-exec)
 // when available, else $TERMINAL -e. ok is false when there's no terminal.
 func newWindowCmd(dir, exe string, look func(string) (string, error)) (args []string, ok bool) {
@@ -194,7 +194,7 @@ func newWindowCmd(dir, exe string, look func(string) (string, error)) (args []st
 func newWindow(dir string) tea.Cmd {
 	exe, err := os.Executable()
 	if err != nil {
-		return func() tea.Msg { return statusMsg{"can't find the tidefiles binary: " + err.Error(), true} }
+		return func() tea.Msg { return statusMsg{"can't find the console-places binary: " + err.Error(), true} }
 	}
 	args, ok := newWindowCmd(dir, exe, exec.LookPath)
 	if !ok {

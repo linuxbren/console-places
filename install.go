@@ -3,7 +3,7 @@ package main
 // Offering to install what a feature needs. Mounting, connecting and
 // browsing use system tools that a static binary can't carry (kernel mount
 // helpers, gvfs, udisks…); the packages list them as optional dependencies.
-// When one is missing, tidefiles says what it is for and offers to install
+// When one is missing, console-places says what it is for and offers to install
 // it with the system's package manager, as root, after a yes. The package
 // manager runs in this terminal, so it shows what it will do and asks too.
 

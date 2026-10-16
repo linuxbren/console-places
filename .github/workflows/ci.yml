@@ -30,7 +30,7 @@ jobs:
 
   nix:
     # Builds the flake (and runs the tests inside Nix's sandbox) and runs the
-    # result, so `nix run github:linuxbren/tidefiles` keeps working. Fails if
+    # result, so `nix run github:linuxbren/console-places` keeps working. Fails if
     # go.mod/go.sum changed without updating vendorHash in flake.nix.
     runs-on: ubuntu-latest
     steps:
@@ -39,8 +39,8 @@ jobs:
         with:
           extra_nix_config: experimental-features = nix-command flakes
       - name: nix build
-        run: nix build -L .#tidefiles
+        run: nix build -L .#console-places
       - name: Run it
         run: |
-          ./result/bin/tidefiles --version
+          ./result/bin/console-places --version
           nix run . -- --version

@@ -9,7 +9,7 @@ import (
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/linuxbren/tidefiles/internal/omarchy"
+	"github.com/linuxbren/console-places/internal/omarchy"
 )
 
 // syntax is the palette used to highlight code in the preview.
@@ -54,7 +54,7 @@ func (s syntax) readable(bg lipgloss.Color) syntax {
 }
 
 func (s syntax) style() *chroma.Style {
-	st, err := chroma.NewStyle("tidefiles", chroma.StyleEntries{
+	st, err := chroma.NewStyle("console-places", chroma.StyleEntries{
 		chroma.Text:              s.fg,
 		chroma.Keyword:           s.kw,
 		chroma.KeywordType:       s.typ,

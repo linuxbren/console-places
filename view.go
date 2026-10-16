@@ -69,7 +69,7 @@ func (m model) frame() string {
 	switch {
 	case m.pickerOpen:
 		h := max(6, m.height-4)
-		ov := m.picker.SoftModal(m.renderer, min(40, m.width-4), h, "tidefiles")
+		ov := m.picker.SoftModal(m.renderer, min(40, m.width-4), h, "console-places")
 		layout.Modal = &ov
 	case m.modal != nil:
 		ov := m.modalOverlay()

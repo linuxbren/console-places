@@ -8,7 +8,7 @@ import (
 	"github.com/allisonhere/tideui"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/linuxbren/tidefiles/internal/omarchy"
+	"github.com/linuxbren/console-places/internal/omarchy"
 )
 
 const themeOmarchy = "omarchy"

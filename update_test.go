@@ -58,13 +58,13 @@ func TestDetectInstall(t *testing.T) {
 		name, exe, ld, bi string
 		want              installKind
 	}{
-		{"release in ~/.local/bin", filepath.Join(writable, "tidefiles"), "v0.7.0", "", installSelf},
-		{"package in /usr/bin", "/usr/bin/tidefiles", "v0.7.0", "", installPackage},
-		{"folder the user can't write", filepath.Join(locked, "tidefiles"), "v0.7.0", "", lockedKind},
-		{"nix", "/nix/store/abc-tidefiles-0.7.0/bin/tidefiles", "v0.7.0", "", installNix},
-		{"go install", filepath.Join(writable, "tidefiles"), "", "v0.7.0", installGo},
-		{"local build", filepath.Join(writable, "tidefiles"), "", "v0.7.1-0.20261006041954-5f76a2df6047", installDev},
-		{"go run", filepath.Join(writable, "tidefiles"), "", "(devel)", installDev},
+		{"release in ~/.local/bin", filepath.Join(writable, "console-places"), "v0.7.0", "", installSelf},
+		{"package in /usr/bin", "/usr/bin/console-places", "v0.7.0", "", installPackage},
+		{"folder the user can't write", filepath.Join(locked, "console-places"), "v0.7.0", "", lockedKind},
+		{"nix", "/nix/store/abc-console-places-0.7.0/bin/console-places", "v0.7.0", "", installNix},
+		{"go install", filepath.Join(writable, "console-places"), "", "v0.7.0", installGo},
+		{"local build", filepath.Join(writable, "console-places"), "", "v0.7.1-0.20261006041954-5f76a2df6047", installDev},
+		{"go run", filepath.Join(writable, "console-places"), "", "(devel)", installDev},
 	} {
 		got, hint := detectInstall(c.exe, c.ld, c.bi)
 		if got != c.want {
@@ -77,24 +77,24 @@ func TestDetectInstall(t *testing.T) {
 }
 
 // fakeRelease serves GitHub's release list: tag, whose archive holds a
-// tidefiles that prints tag (tamper corrupts the archive after its
+// console-places that prints tag (tamper corrupts the archive after its
 // checksum), plus older releases with notes, a draft and a pre-release.
 func fakeRelease(t *testing.T, tag string, tamper bool) {
 	t.Helper()
 	var tgz bytes.Buffer
 	gz := gzip.NewWriter(&tgz)
 	tw := tar.NewWriter(gz)
-	bin := []byte("#!/bin/sh\necho 'tidefiles " + tag + "'\n")
+	bin := []byte("#!/bin/sh\necho 'console-places " + tag + "'\n")
 	for _, f := range []struct {
 		name string
 		body []byte
-	}{{"README.md", []byte("readme")}, {"tidefiles", bin}} {
+	}{{"README.md", []byte("readme")}, {"console-places", bin}} {
 		tw.WriteHeader(&tar.Header{Name: f.name, Mode: 0o755, Size: int64(len(f.body)), Typeflag: tar.TypeReg})
 		tw.Write(f.body)
 	}
 	tw.Close()
 	gz.Close()
-	name := "tidefiles_linux_" + runtime.GOARCH + ".tar.gz"
+	name := "console-places_linux_" + runtime.GOARCH + ".tar.gz"
 	sum := sha256.Sum256(tgz.Bytes())
 	archive := tgz.Bytes()
 	if tamper {
@@ -124,18 +124,18 @@ func fakeRelease(t *testing.T, tag string, tamper bool) {
 		}
 	}))
 	t.Cleanup(srv.Close)
-	t.Setenv("TIDEFILES_UPDATE_URL", srv.URL+"/releases")
+	t.Setenv("CONSOLE_PLACES_UPDATE_URL", srv.URL+"/releases")
 }
 
-// oldBinary writes a stand-in tidefiles v0.7.0 and makes it the running
+// oldBinary writes a stand-in console-places v0.7.0 and makes it the running
 // version.
 func oldBinary(t *testing.T) string {
 	t.Helper()
 	old := version
 	version = "v0.7.0"
 	t.Cleanup(func() { version = old })
-	exe := filepath.Join(t.TempDir(), "tidefiles")
-	if err := os.WriteFile(exe, []byte("#!/bin/sh\necho 'tidefiles v0.7.0'\n"), 0o755); err != nil {
+	exe := filepath.Join(t.TempDir(), "console-places")
+	if err := os.WriteFile(exe, []byte("#!/bin/sh\necho 'console-places v0.7.0'\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	return exe
@@ -154,7 +154,7 @@ func TestInstallRelease(t *testing.T) {
 	if b, _ := os.ReadFile(exe); !strings.Contains(string(b), "v9.9.9") {
 		t.Fatalf("binary not replaced: %s", b)
 	}
-	if left, _ := filepath.Glob(filepath.Join(filepath.Dir(exe), ".tidefiles-update-*")); len(left) > 0 {
+	if left, _ := filepath.Glob(filepath.Join(filepath.Dir(exe), ".console-places-update-*")); len(left) > 0 {
 		t.Fatalf("temporary files left behind: %v", left)
 	}
 }

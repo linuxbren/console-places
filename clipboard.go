@@ -11,7 +11,7 @@ package main
 //
 // Serving several types from one copy needs the Wayland data-control protocol,
 // which wl-copy cannot do. The selection is owned by a detached copy of this
-// binary (see serveClipboard) so it outlives tidefiles, the way wl-copy's own
+// binary (see serveClipboard) so it outlives console-places, the way wl-copy's own
 // background process does. Compositors without ext-data-control fall back to
 // wl-copy with the single most useful type.
 
@@ -39,7 +39,7 @@ import (
 const (
 	clipType       = "x-special/gnome-copied-files"
 	uriListType    = "text/uri-list"
-	clipServeEnv   = "TIDEFILES_CLIPBOARD_SERVE"
+	clipServeEnv   = "CONSOLE_PLACES_CLIPBOARD_SERVE"
 	maxClipOffered = 512 << 20 // sanity cap on what the owner will read
 )
 

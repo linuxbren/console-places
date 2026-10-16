@@ -1,4 +1,4 @@
-# Opens a pull request when tideui (the UI library tidefiles builds on) has a
+# Opens a pull request when tideui (the UI library console-places builds on) has a
 # new release, so upstream fixes get picked up. Only tideui, monthly, to keep
 # it quiet. A tideui bump changes the Nix vendorHash; the CI nix job says so.
 version: 2
