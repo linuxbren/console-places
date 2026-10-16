@@ -30,7 +30,7 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
     <td align="center">A real Trash with restore · Nord</td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/settings.png" alt="The settings page: tabs at startup, theme, sorting, previews and updates (Osaka Jade theme)"></td>
+    <td><img src="docs/screenshots/settings.png" alt="The settings page: tabs at startup, theme, sorting, previews, places in the file list, video previews and updates, over a Word document preview (Osaka Jade theme)"></td>
     <td><img src="docs/screenshots/gif-preview.webp" alt="An animated GIF (a Mandelbrot zoom) playing in the preview pane, sharp sixel in foot (Ristretto theme)"></td>
     <td><img src="docs/screenshots/select-text.png" alt="Dragging over a syntax-highlighted Go file in the preview selects it; letting go copies the file's text (Hackerman theme)"></td>
   </tr>
