@@ -9,7 +9,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -108,17 +107,20 @@ type installMsg struct {
 // install runs the package manager as root with the terminal handed over.
 func (m *model) install(need string) tea.Cmd {
 	req, pm := requirements[need], packageManager()
-	errFile := fmt.Sprintf("%s/tidefiles-install-%d", os.TempDir(), os.Getpid())
-	_ = os.WriteFile(errFile, nil, 0o600)
+	errFile, done, err := privErrFile("install")
+	if err != nil {
+		m.setMsg("install: "+err.Error(), true)
+		return nil
+	}
 	c, err := privileged("installing "+req.pkgs[pm], errFile, installArgs(pm, req.pkgs[pm])...)
 	if err != nil {
-		os.Remove(errFile)
+		done()
 		m.setMsg(err.Error(), true)
 		return nil
 	}
 	return runPrivileged(c, func(err error) tea.Msg {
 		b, _ := os.ReadFile(errFile)
-		os.Remove(errFile)
+		done()
 		return installMsg{need: need, err: err, text: strings.TrimSpace(string(b))}
 	})
 }

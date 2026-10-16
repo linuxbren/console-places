@@ -151,6 +151,23 @@ shift 3
 exec "$tool" /bin/sh -c '"$@" 2>"$0"' "$err" "$@"
 `
 
+// privErrFile makes the file a root command's errors go to, inside a private
+// folder. Not straight in /tmp: with fs.protected_regular (systemd's default)
+// even root may not open a file someone else owns in a sticky folder, so
+// `2>file` would fail and the command never run. done removes the folder.
+func privErrFile(name string) (file string, done func(), err error) {
+	dir, err := os.MkdirTemp(os.Getenv("XDG_RUNTIME_DIR"), "tidefiles-"+name+"-")
+	if err != nil {
+		dir, err = os.MkdirTemp("", "tidefiles-"+name+"-")
+	}
+	if err != nil {
+		return "", nil, err
+	}
+	file = filepath.Join(dir, "error")
+	_ = os.WriteFile(file, nil, 0o600)
+	return file, func() { os.RemoveAll(dir) }, nil
+}
+
 // privileged builds the command that runs args as root.
 func privileged(say, errFile string, args ...string) (*exec.Cmd, error) {
 	tool, err := sudoTool()
@@ -208,17 +225,20 @@ func (m *model) mountAsRoot(rm *rootMount) tea.Cmd {
 // unmountAsRoot unmounts a system mount.
 func (m *model) unmountAsRoot(nm netMount) tea.Cmd {
 	m.leaveMount(nm.path)
-	errFile := filepath.Join(os.TempDir(), fmt.Sprintf("tidefiles-umount-%d", os.Getpid()))
-	_ = os.WriteFile(errFile, nil, 0o600)
+	errFile, done, err := privErrFile("umount")
+	if err != nil {
+		m.setMsg("system unmount: "+err.Error(), true)
+		return nil
+	}
 	c, err := privileged("unmounting "+nm.path, errFile, "umount", "--", nm.path)
 	if err != nil {
-		os.Remove(errFile)
+		done()
 		m.setMsg(err.Error(), true)
 		return nil
 	}
 	return runPrivileged(c, func(err error) tea.Msg {
 		b, _ := os.ReadFile(errFile)
-		os.Remove(errFile)
+		done()
 		return rootDoneMsg{mp: nm.path, err: err, text: strings.TrimSpace(string(b))}
 	})
 }

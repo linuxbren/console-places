@@ -1059,3 +1059,25 @@ func TestFirewallDialogFits(t *testing.T) {
 		}
 	}
 }
+
+// Root's error file must not sit directly in a sticky folder like /tmp, where
+// fs.protected_regular stops root from opening a file the user made.
+func TestPrivErrFilePrivateFolder(t *testing.T) {
+	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+	f, done, err := privErrFile("ufw")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Dir(f)
+	st, err := os.Stat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.Mode()&os.ModeSticky != 0 || st.Mode().Perm() != 0o700 || dir == os.TempDir() {
+		t.Fatalf("error file in %s (%v)", dir, st.Mode())
+	}
+	done()
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Fatal("folder left behind")
+	}
+}

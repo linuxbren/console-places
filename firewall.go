@@ -13,7 +13,6 @@ package main
 
 import (
 	"encoding/hex"
-	"fmt"
 	"net"
 	"os"
 	"slices"
@@ -203,8 +202,11 @@ func (m *model) removeDiscovery() tea.Cmd {
 
 // runUfw runs ufw commands as root (pkexec or sudo, terminal handed over).
 func (m *model) runUfw(why string, cmds [][]string, removed bool) tea.Cmd {
-	errFile := fmt.Sprintf("%s/tidefiles-ufw-%d", os.TempDir(), os.Getpid())
-	_ = os.WriteFile(errFile, nil, 0o600)
+	errFile, done, err := privErrFile("ufw")
+	if err != nil {
+		m.setMsg("firewall: "+err.Error(), true)
+		return nil
+	}
 	var script []string
 	for _, a := range cmds {
 		q := make([]string, len(a))
@@ -215,13 +217,13 @@ func (m *model) runUfw(why string, cmds [][]string, removed bool) tea.Cmd {
 	}
 	c, err := privileged(why, errFile, "sh", "-c", strings.Join(script, " && "))
 	if err != nil {
-		os.Remove(errFile)
+		done()
 		m.setMsg(err.Error(), true)
 		return nil
 	}
 	return runPrivileged(c, func(err error) tea.Msg {
 		b, _ := os.ReadFile(errFile)
-		os.Remove(errFile)
+		done()
 		return firewallMsg{err: err, text: strings.TrimSpace(string(b)), removed: removed}
 	})
 }
