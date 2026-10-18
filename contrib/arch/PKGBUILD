@@ -3,7 +3,7 @@
 # Build from source with:  makepkg -si   (in this folder)
 # To update: bump pkgver, run `updpkgsums`, then `makepkg --printsrcinfo > .SRCINFO`.
 pkgname=console-places
-pkgver=0.10.0
+pkgver=0.11.0
 pkgrel=1
 pkgdesc="Keyboard-first terminal file manager that follows your Omarchy theme"
 arch=('x86_64' 'aarch64')
@@ -12,7 +12,7 @@ license=('MIT')
 depends=('glibc' 'wl-clipboard' 'glib2')
 makedepends=('go')
 conflicts=('tidefiles')
-replaces=('tidefiles')  # its name until v0.11
+replaces=('tidefiles')  # its name through v0.10
 optdepends=(
   'ripgrep: faster search inside files'
   '7zip: archives bsdtar cannot open'
@@ -32,7 +32,7 @@ optdepends=(
   'nfs-utils: system (root) NFS mounts'
 )
 source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
-sha256sums=('5af71a65f09a5eee4294cd3c5812e37432e1ac612958e08a23eee81da071c035')
+sha256sums=('c3bd5d3ab53ae23b1682a38b8cfaccf629ee78b3b9bc0e6c6c563c46bf1115a5')
 
 prepare() {
   cd "$pkgname-$pkgver"
