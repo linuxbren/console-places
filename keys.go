@@ -116,8 +116,9 @@ var bindingGroups = []bindingGroup{
 		{actGoto, []string{"ctrl+l"}, "ctrl+l", "type a path"},
 		{actFind, []string{"f"}, "f", "find files and folders below here (fuzzy)"},
 		{actGrep, []string{"F"}, "F", "search inside files below here (alt+r: regex)"},
-		{actPlaces, []string{"b"}, "b", "places: bookmarks, drives, network"},
+		{actPlaces, []string{"b"}, "b", "places: bookmarks, frequent folders, drives, network"},
 		{actBookmark, []string{"B"}, "B", "bookmark this folder (again: remove it)"},
+		{actNone, nil, "b → B / d", "on a frequent folder: pin as bookmark / remove from the list"}, // help only: places' own keys
 		{actHome, []string{"~"}, "~", "home folder"},
 		{actGoTrash, []string{"alt+t"}, "alt+t", "trash"},
 	}},
@@ -197,7 +198,7 @@ var actionKey = func() map[action]string {
 	m := map[action]string{}
 	for _, g := range bindingGroups {
 		for _, b := range g.bindings {
-			if _, ok := m[b.act]; !ok {
+			if _, ok := m[b.act]; !ok && len(b.keys) > 0 {
 				m[b.act] = b.keys[0]
 			}
 		}

@@ -79,7 +79,7 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
   you were last in; started with a folder (`console-places ~/Music`), that folder's tab is active (added if
   none is open there). Settings can restore tabs only when no folder is given, or never.
 - **Settings page** — `S` lists every preference (tabs at startup, theme, hidden files, sort, preview
-  pane, text and code word wrap, markdown, image previews, file icons, places in the file list, video previews, updates); `←`/`→` change one, and it's saved straight away.
+  pane, text and code word wrap, markdown, image previews, file icons, frequent folders, places in the file list, video previews, updates); `←`/`→` change one, and it's saved straight away.
 - **Keeps itself up to date** — release binaries check for a new version once a day, install it after
   verifying its checksum, and ask before restarting (tabs come back), listing what's new since your
   version so you can jump straight in. `U` does it by hand; see
@@ -104,6 +104,14 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
     network location, removes a bookmark or forgets a saved server (never touching files).
   - **Bookmarks** — `B` bookmarks the folder you're in (`B` again removes it); bookmarked folders
     show a `★`.
+  - **Frequent** — the ten folders you go to most, ranked by frecency (visits, weighted by how
+    recent: zoxide's scheme), are listed after the bookmarks. Every folder you open counts
+    (except home, `/` and the Trash); the 200 best are remembered in `frequent.json` next to
+    `config.json`, and folders that no longer exist drop out. In places, `B` pins one as a
+    bookmark and `d` removes it from the list. Settings (`S`) → *Frequent folders in places*
+    turns it off (nothing is recorded then), or *on, shared with zoxide* uses zoxide's database
+    instead — `zoxide add` on every visit and `zoxide query` for the list — so your shell's `z`
+    and console-places learn from each other; without zoxide that falls back to the built-in list.
   - **Drives** — every drive and partition that isn't part of the running system, mounted or not,
     with free space. `enter` mounts and opens one (an encrypted one asks for its passphrase); `u`
     unmounts it, and a USB drive is then powered off so it's safe to unplug. Uses udisks: no root,
@@ -218,7 +226,7 @@ console-places --cwd-file /tmp/console-places.cwd   # write final dir on quit, f
 From a checkout, `go run . [dir]` works the same way.
 
 Settings (theme, hidden files, wrap, sort, bookmarks, servers you connected to) are remembered in
-`~/.config/console-places/config.json`.
+`~/.config/console-places/config.json`; frequent folders in `frequent.json` beside it.
 
 ## Keys
 

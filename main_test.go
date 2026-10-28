@@ -36,6 +36,7 @@ func TestMain(m *testing.M) {
 	ufwConf = filepath.Join(dir, "no-ufw.conf") // nor the firewall or package manager
 	localLAN = func() string { return "" }
 	packageManager = func() string { return "" }
+	zoxideBin = func() string { return "" } // never touch a real zoxide database
 	code := m.Run()
 	os.RemoveAll(dir)
 	os.Exit(code)

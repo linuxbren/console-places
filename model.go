@@ -404,6 +404,9 @@ func (m *model) navigate(dir, focus string, record bool) {
 		m.hist = append(m.hist[:m.hi+1], dir)
 		m.hi = len(m.hist) - 1
 	}
+	if dir != m.cwd {
+		m.recordVisit(dir)
+	}
 	m.cwd, m.offset, m.cursor, m.filter = dir, 0, 0, ""
 	m.bumped = time.Time{}
 	m.selected = map[string]bool{}

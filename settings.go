@@ -146,6 +146,24 @@ func settingsList() []setting {
 				m.cfg.save()
 				return nil
 			}},
+		{label: "Frequent folders in places", choices: []string{"on", "on, shared with zoxide", "off"},
+			current: func(m model) int {
+				switch m.cfg.Frequent {
+				case frequentZoxide:
+					return 1
+				case frequentOff:
+					return 2
+				}
+				return 0
+			},
+			apply: func(m *model, i int) tea.Cmd {
+				m.cfg.Frequent = []string{frequentOn, frequentZoxide, frequentOff}[i]
+				m.cfg.save()
+				if i == 1 && zoxideBin() == "" {
+					m.setMsg("zoxide isn't installed: console-places' own list is used until it is", false)
+				}
+				return nil
+			}},
 		{label: "Places in the file list", choices: []string{"off (Trash in home)", "bookmarks, Trash", "all places"},
 			current: func(m model) int {
 				switch m.cfg.PlacesInList {

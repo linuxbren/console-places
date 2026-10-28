@@ -42,7 +42,7 @@ func keysFor(act action) string {
 	pretty := strings.NewReplacer("up", "↑", "down", "↓", "left", "←", "right", "→", "pgdown", "pgdn", " ", "space")
 	for _, g := range bindingGroups {
 		for _, b := range g.bindings {
-			if b.act != act {
+			if b.act != act || act == actNone { // actNone: help-only rows
 				continue
 			}
 			if b.display != "" && !strings.Contains(b.display, " / ") && !strings.Contains(b.display, "…") {
@@ -94,6 +94,8 @@ func (m model) commands() []command {
 		{title: "Half page down", act: actHalfDown, group: "Navigate"},
 		{title: "Go to a path…", synonyms: "type path location cd jump", act: actGoto, group: "Navigate"},
 		{title: "Places, drives and network", synonyms: "sidebar bookmarks home downloads drives mounts usb disk network shares", act: actPlaces, group: "Navigate"},
+		{id: "frequent", title: "Frequent folders (in places: B pins, d removes)", synonyms: "recent visited often frecency zoxide jump history",
+			group: "Navigate", run: func(m *model) tea.Cmd { m.openFrequent(); return nil }},
 		{title: onOff(m.isBookmarked(m.cwd), "Remove bookmark", "Bookmark this folder"), synonyms: "favourite favorite pin star starred", act: actBookmark, group: "Navigate"},
 		{id: "connect", title: "Connect to server…", synonyms: "network share smb samba windows mac sftp ssh nfs ftp webdav mount remote",
 			run: func(mm *model) tea.Cmd { mm.openConnect("", ""); return nil }, group: "Navigate"},

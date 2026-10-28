@@ -30,8 +30,9 @@ const (
 
 const (
 	secBookmarks = "Bookmarks"
-	secDrives    = "Drives"
-	secNetwork   = "Network"
+	// secFrequent (frequent.go) comes next
+	secDrives  = "Drives"
+	secNetwork = "Network"
 )
 
 type place struct {
@@ -40,6 +41,7 @@ type place struct {
 	kind       placeKind
 	info       string
 	bookmark   bool
+	frequent   bool // under Frequent (frequent.go)
 	missing    bool // a bookmark whose folder is gone
 	drive      drive
 	net        netMount
@@ -76,6 +78,9 @@ func (m model) places() []place {
 			p.missing, p.info = true, "missing · "+tildePath(b)
 		}
 		out = append(out, p) // a bookmark of a place above is still listed
+	}
+	for _, f := range m.frequentFolders(func(p string) bool { return seen[p] || m.isBookmarked(p) }) {
+		out = append(out, place{name: filepath.Base(f), path: f, section: secFrequent, frequent: true, info: tildePath(f)})
 	}
 
 	add(place{name: "Computer", path: "/", section: secDrives, info: "/"})
@@ -197,6 +202,8 @@ func (m model) placesBody(md *modal, inner int) []string {
 		switch p := md.places[md.sel]; {
 		case p.bookmark:
 			h = append(h, tideui.SoftHint{Key: "d", Label: "remove bookmark"})
+		case p.frequent:
+			h = append(h, tideui.SoftHint{Key: "shift+b", Label: "pin"}, tideui.SoftHint{Key: "d", Label: "remove"}) // tideui lowercases keys
 		case p.kind == placeDrive && p.path == "" && p.drive.locked:
 			h[0].Label = "unlock"
 		case p.kind == placeDrive && p.path == "":
@@ -241,9 +248,17 @@ func (m model) handlePlacesKey(md *modal, key string) (model, tea.Cmd, bool) {
 		}
 		m.modal = nil
 		return m, m.unmountPlace(p), true
+	case "B":
+		if !p.frequent {
+			m.setMsg("B pins a frequent folder as a bookmark", true)
+			return m, nil, true
+		}
+		m.pinFrequent(p.path)
+		m.openPlacesAt(md.sel)
+		return m, nil, true
 	case "d", "delete":
 		if !forgettable(p) {
-			m.setMsg("only bookmarks and saved servers can be removed", true)
+			m.setMsg("only bookmarks, frequent folders and saved servers can be removed", true)
 			return m, nil, true
 		}
 		m.forgetPlace(p)
@@ -260,7 +275,7 @@ func unmountable(p place) bool {
 	return (p.kind == placeDrive && p.path != "") || p.kind == placeNet
 }
 
-func forgettable(p place) bool { return p.bookmark || p.kind == placeServer }
+func forgettable(p place) bool { return p.bookmark || p.frequent || p.kind == placeServer }
 
 // unmountPlace unmounts a drive or disconnects a network location.
 func (m *model) unmountPlace(p place) tea.Cmd {
@@ -276,9 +291,13 @@ func (m *model) unmountPlace(p place) tea.Cmd {
 
 // forgetPlace removes a bookmark or a saved server.
 func (m *model) forgetPlace(p place) {
-	if p.bookmark {
+	switch {
+	case p.bookmark:
 		m.removeBookmark(p.path)
-	} else {
+	case p.frequent:
+		m.forgetFrequent(p.path)
+		m.setMsg("removed "+tildePath(p.path)+" from frequent folders", false)
+	default:
 		m.forgetServer(p.uri)
 	}
 }

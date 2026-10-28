@@ -41,6 +41,8 @@ One `main` package, one file per concern:
   `dusize.go` (properties' folder sizes: counted off the UI goroutine, size + on disk, hard links once,
   refreshed by `sizeTickMsg`, cancelled when the dialog goes);
   `places.go` (`b`: sections Places / Bookmarks / Drives / Network; `B` toggles a bookmark);
+  `frequent.go` (Frequent section in places: zoxide-style frecency recorded in `navigate`, top 10 of
+  200 kept in `frequent.json` beside config.json; optional zoxide database; `B` pins, `d` removes);
   `listplaces.go` (opt-in setting: places rows below every folder's files, the Trash row generalised;
   drives/network from a background scan, never read while drawing); `clipboard.go` (Wayland ext-data-control owner, X11 xclip/xsel,
   wl-copy fallback); `config.go` (`~/.config/console-places/config.json`); `internal/omarchy` theme reading.
