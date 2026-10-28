@@ -51,14 +51,14 @@ One `main` package, one file per concern:
   `keyring.go` saves a password (when ticked) to the Secret Service over D-Bus with gvfs' own
   NetworkPassword attributes, since gio never saves; gvfs finds it next time. `discover.go` browses
   via avahi-browse, a WS-Discovery probe and nmblookup (ufw drops WSD/NetBIOS replies; mDNS passes),
-  smbclient lists shares. `rootmount.go` opt-in kernel cifs/nfs mounts via pkexec/sudo with the
-  terminal handed over (`tea.ExecProcess`); the cifs password goes in a 0600 file deleted after.
+  smbclient lists shares. Network mounts made outside gvfs are listed only when they are FUSE
+  (sshfs, rclone), which the user can unmount; kernel cifs/nfs mounts need root and aren't places.
   `tailscale.go` lists the tailnet's online computers from `tailscale status --json` (Tailscale… in
   Network, and its own heading in Browse network…). `netinfo.go` fills a connected location's
   preview (address, protocol, user, space) off the UI goroutine. `firewall.go` offers (with a yes) two ufw rules letting WSD/NetBIOS answers in from the LAN, and removes them again (only rules
   carrying its comment);
   `install.go` turns a `missingError` into an offer to install the package (per package manager).
-  Root actions share `privileged()` + `runPrivileged` (pkexec/sudo, terminal handed over).
+  Root actions share `privileged()` + `runPrivileged` in `privileged.go` (pkexec/sudo, terminal handed over).
   Tests stub every system lookup in `TestMain` (lsblk, gvfs, mounts, keyring, network, ufw, pm).
 - `rename.go`: console-places was **tidefiles** until v0.11. Old installs keep working: the settings
   folder is moved, `TIDEFILES_*` variables are read (`envVar`), rules labelled "tidefiles discovery"

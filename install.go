@@ -1,8 +1,8 @@
 package main
 
 // Offering to install what a feature needs. Mounting, connecting and
-// browsing use system tools that a static binary can't carry (kernel mount
-// helpers, gvfs, udisks…); the packages list them as optional dependencies.
+// browsing use system tools that a static binary can't carry (gvfs, udisks,
+// avahi…); the packages list them as optional dependencies.
 // When one is missing, console-places says what it is for and offers to install
 // it with the system's package manager, as root, after a yes. The package
 // manager runs in this terminal, so it shows what it will do and asks too.
@@ -24,10 +24,6 @@ type requirement struct {
 }
 
 var requirements = map[string]requirement{
-	"nfs": {what: "System NFS mounts use the kernel's NFS client, whose mount helper (mount.nfs) isn't installed.",
-		pkgs: map[string]string{"pacman": "nfs-utils", "apt-get": "nfs-common", "dnf": "nfs-utils", "zypper": "nfs-client", "apk": "nfs-utils"}},
-	"cifs": {what: "System SMB mounts use the kernel's SMB client, whose mount helper (mount.cifs) isn't installed.",
-		pkgs: map[string]string{"pacman": "cifs-utils", "apt-get": "cifs-utils", "dnf": "cifs-utils", "zypper": "cifs-utils", "apk": "cifs-utils"}},
 	"gvfs": {what: "Connecting to servers goes through gvfs (as in Nautilus), which isn't installed.",
 		pkgs:  map[string]string{"pacman": "gvfs gvfs-smb gvfs-nfs", "apt-get": "gvfs gvfs-fuse gvfs-backends", "dnf": "gvfs gvfs-fuse gvfs-smb gvfs-nfs", "zypper": "gvfs gvfs-fuse gvfs-backends", "apk": "gvfs gvfs-fuse gvfs-smb gvfs-nfs"},
 		after: "if connecting still fails, log out and back in so gvfs starts"},

@@ -548,8 +548,9 @@ func TestMountUsers(t *testing.T) {
 }
 
 func TestSystemNetMounts(t *testing.T) {
-	got := systemNetMounts("//nas/photos /mnt/photos cifs rw 0 0\nme@box:/srv /home/me/box fuse.sshfs rw 0 0\ngvfsd-fuse /run/user/1000/gvfs fuse.gvfsd-fuse rw 0 0\nnas:/export /mnt/my\\040nfs nfs4 rw 0 0\n")
-	if len(got) != 3 || got[0].path != "/mnt/photos" || got[1].name != "me@box:/srv" || got[2].path != "/mnt/my nfs" || !got[0].system {
+	// Kernel mounts (cifs, nfs) need root to unmount, so only FUSE ones are places.
+	got := systemNetMounts("//nas/photos /mnt/photos cifs rw 0 0\nme@box:/srv /home/me/box fuse.sshfs rw 0 0\ngvfsd-fuse /run/user/1000/gvfs fuse.gvfsd-fuse rw 0 0\nremote:pics /home/me/my\\040pics fuse.rclone rw 0 0\nnas:/export /mnt/my\\040nfs nfs4 rw 0 0\n")
+	if len(got) != 2 || got[0].name != "me@box:/srv" || got[1].path != "/home/me/my pics" || !got[0].system {
 		t.Fatalf("%+v", got)
 	}
 }
@@ -717,141 +718,18 @@ func TestBrowseNetworkFlow(t *testing.T) {
 	}
 }
 
-// fakeRoot makes "root" commands run as the user: pkexec runs its arguments,
-// mount and umount log theirs (and the SMB credentials file).
+// fakeRoot makes "root" commands run as the user: pkexec runs its arguments.
 func fakeRoot(t *testing.T) string {
 	log := filepath.Join(t.TempDir(), "root.log")
 	fakeTool(t, "pkexec", `[ -f `+log+`.deny ] && exit 126
 exec "$@"
 `)
-	fakeTool(t, "mount", `echo "mount $*" >> `+log+`
-case "$4" in *credentials=*) f=${4#*credentials=}; f=${f%%,*}; cat "$f" >> `+log+`; echo "creds=$f" >> `+log+`;; esac
-[ -f `+log+`.fail ] && { echo "mount error(13): Permission denied" >&2; exit 32; }
-exit 0
-`)
-	fakeTool(t, "umount", `echo "umount $*" >> `+log+"\n")
-	origH, origR := hasMountHelper, runPrivileged
-	hasMountHelper = func(string) bool { return true }
+	origR := runPrivileged
 	runPrivileged = func(c *exec.Cmd, done func(error) tea.Msg) tea.Cmd {
 		return func() tea.Msg { return done(c.Run()) }
 	}
-	t.Cleanup(func() { hasMountHelper, runPrivileged = origH, origR })
+	t.Cleanup(func() { runPrivileged = origR })
 	return log
-}
-
-func TestSystemMountSMB(t *testing.T) {
-	log := fakeRoot(t)
-	m := testModel(t, t.TempDir())
-	mp := filepath.Join(t.TempDir(), "photos")
-	m.openConnect("", "")
-	m = typeText(m, `\\nas\photos`)
-	m, _ = m.handleModalKey(tea.KeyMsg{Type: tea.KeyCtrlR})
-	if m.modal == nil || m.modal.purpose != "rootmp" || m.modal.in.value() != "/mnt/photos" || !strings.Contains(m.modal.label, "//nas/photos") {
-		t.Fatalf("mountpoint question: %+v", m.modal)
-	}
-	m.modal.in = newInput("/home")
-	m, _ = m.handleModalKey(tea.KeyMsg{Type: tea.KeyEnter})
-	if m.modal == nil || m.modal.purpose != "rootmp" || !strings.Contains(m.modal.label, "system folder") {
-		t.Fatalf("system folders are refused: %+v", m.modal)
-	}
-	m.modal.in = newInput(mp)
-	m, _ = m.handleModalKey(tea.KeyMsg{Type: tea.KeyEnter})
-	if m.modal == nil || m.modal.purpose != "rootuser" {
-		t.Fatalf("user question: %+v", m.modal)
-	}
-	m.modal.in = newInput(`HOME\alice`)
-	m, _ = m.handleModalKey(tea.KeyMsg{Type: tea.KeyEnter})
-	if m.modal == nil || m.modal.purpose != "rootpass" || !m.modal.secret {
-		t.Fatalf("password question: %+v", m.modal)
-	}
-	m = typeText(m, "pa ss")
-	m, cmd := m.handleModalKey(tea.KeyMsg{Type: tea.KeyEnter})
-	m, _ = drive1(t, m, cmd)
-	if m.cwd != mp || m.msgErr || !strings.Contains(m.msg, "mounted //nas/photos at "+mp) {
-		t.Fatalf("mounted: cwd %s msg %q", m.cwd, m.msg)
-	}
-	b, _ := os.ReadFile(log)
-	got := string(b)
-	if !strings.Contains(got, "mount -t cifs -o uid=") || !strings.Contains(got, "-- //nas/photos "+mp) ||
-		!strings.Contains(got, "username=alice\npassword=pa ss\ndomain=HOME\n") || strings.Contains(strings.SplitN(got, "\n", 2)[0], "pa ss") {
-		t.Fatalf("mount saw:\n%s", got)
-	}
-	creds := got[strings.Index(got, "creds=")+6:]
-	if _, err := os.Stat(strings.TrimSpace(creds)); err == nil {
-		t.Fatal("the credentials file should be gone after mounting")
-	}
-}
-
-func TestSystemMountNFSAndErrors(t *testing.T) {
-	log := fakeRoot(t)
-	m := testModel(t, t.TempDir())
-	if _, err := newRootMount("smb://nas"); err == nil || !strings.Contains(err.Error(), "share") {
-		t.Errorf("smb without a share: %v", err)
-	}
-	if _, err := newRootMount("sftp://box/srv"); err == nil {
-		t.Error("sftp can't be a system mount here")
-	}
-	hasMountHelper = func(string) bool { return false }
-	if _, err := newRootMount("nfs://nas/export"); err == nil || !strings.Contains(err.Error(), "nfs-utils") {
-		t.Errorf("missing helper: %v", err)
-	}
-	hasMountHelper = func(string) bool { return true }
-	full := t.TempDir()
-	mkfile(t, filepath.Join(full, "x"), "")
-	if err := checkMountpoint(full); err == nil || !strings.Contains(err.Error(), "isn't empty") {
-		t.Errorf("non-empty folder: %v", err)
-	}
-
-	mp := filepath.Join(t.TempDir(), "media")
-	m.startRootMount("nfs://nas/export/media")
-	m.modal.in = newInput(mp)
-	m, cmd := m.handleModalKey(tea.KeyMsg{Type: tea.KeyEnter}) // NFS asks nothing more
-	m, _ = drive1(t, m, cmd)
-	b, _ := os.ReadFile(log)
-	if !strings.Contains(string(b), "mount -t nfs -o defaults -- nas:/export/media "+mp) || m.cwd != mp {
-		t.Fatalf("nfs: %q\n%s", m.msg, b)
-	}
-
-	mkfile(t, log+".fail", "")
-	m.startRootMount("nfs://nas/export/other")
-	m.modal.in = newInput(filepath.Join(t.TempDir(), "other"))
-	m, cmd = m.handleModalKey(tea.KeyMsg{Type: tea.KeyEnter})
-	m, _ = drive1(t, m, cmd)
-	if !m.msgErr || m.msg != "system mount of nas:/export/other: mount error(13): Permission denied" {
-		t.Fatalf("failure: %q", m.msg)
-	}
-	mkfile(t, log+".deny", "")
-	m.startRootMount("nfs://nas/export/other")
-	m.modal.in = newInput(filepath.Join(t.TempDir(), "other"))
-	m, cmd = m.handleModalKey(tea.KeyMsg{Type: tea.KeyEnter})
-	m, _ = drive1(t, m, cmd)
-	if !strings.HasSuffix(m.msg, "not authorized") {
-		t.Fatalf("dismissed: %q", m.msg)
-	}
-}
-
-func TestUnmountSystemMount(t *testing.T) {
-	log := fakeRoot(t)
-	m, home := homeModel(t)
-	share := t.TempDir()
-	mountsText = func() string { return "//nas/photos " + share + " cifs rw 0 0\n" }
-	t.Cleanup(func() { mountsText = func() string { return "" } })
-	m.chdir(share, "")
-	m = press(t, m, "b")
-	for i, p := range m.modal.places {
-		if p.kind == placeNet {
-			m.modal.sel = i
-		}
-	}
-	m, cmd := m.handleModalKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'u'}})
-	if m.cwd != home {
-		t.Fatalf("leave the mount first: %s", m.cwd)
-	}
-	m, _ = drive1(t, m, cmd)
-	b, _ := os.ReadFile(log)
-	if !strings.Contains(string(b), "umount -- "+share) || m.msg != "unmounted "+share {
-		t.Fatalf("umount: %q\n%s", m.msg, b)
-	}
 }
 
 func TestFirewallDetection(t *testing.T) {
@@ -975,18 +853,17 @@ func TestInstallDialog(t *testing.T) {
 	orig := packageManager
 	packageManager = func() string { return "pacman" }
 	t.Cleanup(func() { packageManager = orig })
-	hasMountHelper = func(string) bool { return false }
 
 	m := testModel(t, t.TempDir())
-	m.startRootMount("nfs://nas/export")
+	m.offerInstall(missing("smbclient", "smbclient isn't installed"))
 	body := strings.Join(m.modal.lines, "\n")
-	if m.modal == nil || m.modal.purpose != "install" || !strings.Contains(body, "mount.nfs") || !strings.Contains(body, "pacman -S --needed nfs-utils") {
+	if m.modal == nil || m.modal.purpose != "install" || !strings.Contains(body, "smbclient") || !strings.Contains(body, "pacman -S --needed smbclient") {
 		t.Fatalf("install offer: %+v", m.modal)
 	}
 	m, cmd := m.handleModalKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
 	m, _ = drive1(t, m, cmd)
 	b, _ := os.ReadFile(log)
-	if !strings.Contains(string(b), "pacman -S --needed nfs-utils") || m.msg != "installed nfs-utils · try again" {
+	if !strings.Contains(string(b), "pacman -S --needed smbclient") || m.msg != "installed smbclient · try again" {
 		t.Fatalf("install: %q\n%s", m.msg, b)
 	}
 

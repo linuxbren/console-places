@@ -82,10 +82,10 @@ nfpms:
     overrides:
       deb:
         recommends: [wl-clipboard, libarchive-tools, ripgrep]
-        suggests: [xclip, imagemagick, poppler-utils, ffmpegthumbnailer, ffmpeg, xdg-utils, udisks2, gvfs, gvfs-fuse, gvfs-backends, avahi-utils, smbclient, cifs-utils, nfs-common]
+        suggests: [xclip, imagemagick, poppler-utils, ffmpegthumbnailer, ffmpeg, xdg-utils, udisks2, gvfs, gvfs-fuse, gvfs-backends, avahi-utils, smbclient]
       rpm:
         recommends: [wl-clipboard, bsdtar, ripgrep]
-        suggests: [xclip, ImageMagick, poppler-utils, ffmpegthumbnailer, ffmpeg, xdg-utils, udisks2, gvfs, gvfs-fuse, gvfs-smb, gvfs-nfs, avahi-tools, samba-client, cifs-utils, nfs-utils]
+        suggests: [xclip, ImageMagick, poppler-utils, ffmpegthumbnailer, ffmpeg, xdg-utils, udisks2, gvfs, gvfs-fuse, gvfs-smb, gvfs-nfs, avahi-tools, samba-client]
       apk:
         recommends: [wl-clipboard, libarchive-tools, ripgrep]
 
@@ -116,8 +116,6 @@ aurs:
       - "gvfs-nfs: NFS shares"
       - "avahi: find computers on the network"
       - "smbclient: list the shares on a server"
-      - "cifs-utils: system (root) SMB mounts"
-      - "nfs-utils: system (root) NFS mounts"
     git_url: "ssh://aur@aur.archlinux.org/console-places-bin.git"
     private_key: "{{ .Env.AUR_KEY }}"
     skip_upload: true

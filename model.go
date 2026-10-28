@@ -71,7 +71,6 @@ type model struct {
 	undo        []undoItem
 	conn        *connection  // the network location being connected to
 	forceDisc   string       // a busy network location: disconnecting it again forces it
-	rm          *rootMount   // a system mount being set up
 	vid         *videoPlayer // the video playing in the preview, if any
 	scan        *placeScan   // drives and network locations, for places in the list
 	scannedAt   time.Time
@@ -580,8 +579,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd = m.onFirewall(msg)
 	case installMsg:
 		m.onInstall(msg)
-	case rootDoneMsg:
-		m.onRootDone(msg)
 		cmd = m.rescanPlaces(true)
 	case discoverMsg:
 		m.onDiscover(msg)

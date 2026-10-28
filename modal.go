@@ -331,12 +331,6 @@ func (m model) handleModalKey(msg tea.KeyMsg) (model, tea.Cmd) {
 			if md.purpose == "connectp" && md.secret && m.conn != nil && keyringSchemes[m.conn.scheme()] {
 				m.conn.remember = !m.conn.remember
 			}
-		case "ctrl+r":
-			if md.purpose == "connect" {
-				m.modal = nil
-				m.startRootMount(md.in.value())
-				return m, nil
-			}
 		case "ctrl+g":
 			if md.guest && m.conn != nil {
 				uri := m.conn.uri
@@ -347,9 +341,6 @@ func (m model) handleModalKey(msg tea.KeyMsg) (model, tea.Cmd) {
 		case "esc":
 			if md.purpose == "connectp" {
 				m.cancelConnect()
-			}
-			if strings.HasPrefix(md.purpose, "root") {
-				m.rm = nil
 			}
 			if md.purpose == "filter" {
 				m.filter = md.prev
@@ -416,12 +407,6 @@ func (m model) acceptInput(md *modal) (model, tea.Cmd) {
 	switch md.purpose {
 	case "connect":
 		return m, m.connect(val, false)
-	case "rootaddr":
-		m.startRootMount(val)
-	case "rootmp", "rootuser":
-		return m, m.rootAnswer(md.purpose, val)
-	case "rootpass":
-		return m, m.rootAnswer(md.purpose, md.in.value())
 	case "unlock":
 		if len(md.places) == 1 {
 			p := md.places[0]
@@ -537,9 +522,6 @@ func (m model) modalOverlay() tideui.Overlay {
 		h := []tideui.SoftHint{{Key: "enter", Label: "confirm"}, {Key: "esc", Label: "cancel"}}
 		if md.guest {
 			h = append(h, tideui.SoftHint{Key: "ctrl+g", Label: "connect as guest"})
-		}
-		if md.purpose == "connect" {
-			h = append(h, tideui.SoftHint{Key: "ctrl+r", Label: "system mount (root)"})
 		}
 		body = append(body, r.RenderSoftRow(tideui.SoftRow{Text: text, Selected: true}, inner))
 		if md.purpose == "connectp" && md.secret && m.conn != nil && keyringSchemes[m.conn.scheme()] {

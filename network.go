@@ -95,7 +95,7 @@ func serverName(uri string) string {
 // netMount is a connected network location.
 type netMount struct {
 	name, uri, path string
-	system          bool // mounted by the system (fstab, sshfs), not gvfs
+	system          bool // a FUSE mount made outside gvfs (sshfs, rclone)
 }
 
 var mountLine = regexp.MustCompile(`^\s*Mount\(\d+\): (.*) -> (\S+)$`)
@@ -143,10 +143,12 @@ var gioLocalPath = func(uri string) string {
 	return ""
 }
 
-// netFS are the filesystems of network mounts the system made.
-var netFS = map[string]bool{"cifs": true, "smb3": true, "nfs": true, "nfs4": true, "fuse.sshfs": true, "fuse.rclone": true, "davfs": true, "9p": true}
+// netFS are the filesystems of network mounts made outside gvfs that the user
+// can unmount (FUSE). Kernel mounts (cifs, nfs…) need root to unmount, so
+// they aren't listed as places; their folders are still browsable.
+var netFS = map[string]bool{"fuse.sshfs": true, "fuse.rclone": true}
 
-// systemNetMounts lists network filesystems mounted outside gvfs.
+// systemNetMounts lists the user's network filesystems mounted outside gvfs.
 func systemNetMounts(mounts string) []netMount {
 	var res []netMount
 	for _, l := range strings.Split(mounts, "\n") {
@@ -554,14 +556,10 @@ func unmountNet(nm netMount, force bool) ([]byte, error) {
 		return exec.Command("gio", "mount", "-u", "-f", nm.uri).CombinedOutput()
 	case !nm.system:
 		return exec.Command("gio", "mount", "-u", nm.uri).CombinedOutput()
-	case hasFuseMount(nm.path) && force:
-		return fuseUnmount(nm.path, "-z")
-	case hasFuseMount(nm.path):
-		return fuseUnmount(nm.path)
 	case force:
-		return exec.Command("umount", "-l", nm.path).CombinedOutput()
+		return fuseUnmount(nm.path, "-z")
 	}
-	return exec.Command("umount", nm.path).CombinedOutput()
+	return fuseUnmount(nm.path)
 }
 
 // mountUsers names the programs with a folder or file open under path
@@ -604,15 +602,6 @@ func mountUsers(path string) []string {
 		}
 	}
 	return out
-}
-
-func hasFuseMount(path string) bool {
-	for _, l := range strings.Split(readMounts(), "\n") {
-		if f := strings.Fields(l); len(f) >= 3 && f[1] == path && strings.HasPrefix(f[2], "fuse") {
-			return true
-		}
-	}
-	return false
 }
 
 func fuseUnmount(path string, flags ...string) ([]byte, error) {

@@ -115,16 +115,12 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
     try), `d` forgets one. Connections go through gvfs, as in Nautilus, so they're
     shared with it. A connected computer's preview shows its address, the protocol, who you're signed
     in as and its free space, and folders on it are titled `computer: /path`.
-  - **System mounts (root)** — for power users, `ctrl+r` in Connect mounts an SMB or NFS share with
-    the kernel's own client (`mount.cifs` / `mount.nfs`) at a folder like `/mnt/photos`, via pkexec
-    or sudo: faster, and visible to every program. The password goes in a credentials file that's
-    deleted right after mounting.
 - **New window** — `ctrl+n` opens console-places in this folder in a new terminal window
   (`xdg-terminal-exec`, the way Omarchy launches terminals, or `$TERMINAL`).
 
 Drives use `udisks2` (`udisksctl`) and `lsblk`. Network locations need `gvfs` plus its backends
-(`gvfs-smb`, `gvfs-nfs`; `gvfs-backends` on Debian/Ubuntu); browsing uses `avahi` and `smbclient`;
-system mounts need `cifs-utils` or `nfs-utils`. When one is missing, console-places says what it's for
+(`gvfs-smb`, `gvfs-nfs`; `gvfs-backends` on Debian/Ubuntu); browsing uses `avahi` and `smbclient`.
+When one is missing, console-places says what it's for
 and offers to install it with your package manager (as root, after you say yes). If your firewall
 (ufw) drops the answers Windows PCs send while browsing, **Browse network…** explains and offers
 (`f`) to allow just those: UDP from your own network, from the discovery ports 3702 and 137.

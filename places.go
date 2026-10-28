@@ -269,8 +269,6 @@ func (m *model) unmountPlace(p place) tea.Cmd {
 		m.leaveMount(p.path)
 		m.setMsg("unmounting "+p.name+"…", false)
 		return unmountDrive(p.drive)
-	case p.net.system && !hasFuseMount(p.net.path):
-		return m.unmountAsRoot(p.net)
 	}
 	m.setMsg("disconnecting "+p.name+"…", false)
 	return m.disconnect(p.net)
