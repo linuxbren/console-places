@@ -139,6 +139,13 @@ func settingsList() []setting {
 				m.setMsg("", false)
 				return nil
 			}},
+		{label: "File icons", choices: []string{"off", "on (Nerd Font)"},
+			current: func(m model) int { return 1 - onOffIndex(m.cfg.Icons) },
+			apply: func(m *model, i int) tea.Cmd {
+				m.cfg.Icons = i == 1
+				m.cfg.save()
+				return nil
+			}},
 		{label: "Places in the file list", choices: []string{"off (Trash in home)", "bookmarks, Trash", "all places"},
 			current: func(m model) int {
 				switch m.cfg.PlacesInList {

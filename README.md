@@ -71,12 +71,15 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
 - **A modern file manager's toolbox** — select, copy / cut / paste (the system clipboard gets file lists
   for file managers and paths for terminals and editors), trash with **undo**, rename (several at once: a template like `Holiday {n:2}` or find & replace, with a live preview), new file/folder, properties (folder sizes counted in the background: size and space on disk), permissions (chmod), open with…, places and
   bookmarks, back/forward history, filter, fuzzy find across subfolders, search inside files (ripgrep when installed; `alt+r` for regex), sort, terminal here, mouse support.
+- **File icons** (opt-in) — Settings (`S`) → *File icons* puts a Nerd Font icon before each name
+  (folders, code by language, images, video, audio, archives, documents, executables), coloured from
+  your theme.
 - **Tabs** — `ctrl+t` opens a tab on the current folder, `ctrl+w` closes it, `tab`/`shift+tab` or `1`…`9`
   switch; each tab keeps its own folder, selection and history. Tabs are reopened next time on the tab
   you were last in; started with a folder (`console-places ~/Music`), that folder's tab is active (added if
   none is open there). Settings can restore tabs only when no folder is given, or never.
 - **Settings page** — `S` lists every preference (tabs at startup, theme, hidden files, sort, preview
-  pane, text and code word wrap, markdown, image previews, places in the file list, video previews, updates); `←`/`→` change one, and it's saved straight away.
+  pane, text and code word wrap, markdown, image previews, file icons, places in the file list, video previews, updates); `←`/`→` change one, and it's saved straight away.
 - **Keeps itself up to date** — release binaries check for a new version once a day, install it after
   verifying its checksum, and ask before restarting (tabs come back), listing what's new since your
   version so you can jump straight in. `U` does it by hand; see

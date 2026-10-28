@@ -182,7 +182,8 @@ func (m model) renderList(ents []entry, cursor, offset, width, rows int, main bo
 		if main && m.selected[e.name] {
 			prefix = "✓"
 		}
-		row := tideui.Row{Prefix: prefix + " ", Text: sanitize(name), Selected: i == cursor, Muted: e.hidden() || cutSet[e.name]}
+		muted := e.hidden() || cutSet[e.name]
+		row := tideui.Row{Prefix: prefix + " ", Text: m.fileIcon(e, i == cursor || muted) + sanitize(name), Selected: i == cursor, Muted: muted}
 		switch {
 		case main && m.inTrash() && width >= 24:
 			// Where it came from and when it was deleted; narrow panes keep the date.
