@@ -28,8 +28,6 @@ optdepends=(
   'gvfs-nfs: NFS shares'
   'avahi: find computers on the network'
   'smbclient: list the shares on a server'
-  'cifs-utils: system (root) SMB mounts'
-  'nfs-utils: system (root) NFS mounts'
 )
 source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
 sha256sums=('c3bd5d3ab53ae23b1682a38b8cfaccf629ee78b3b9bc0e6c6c563c46bf1115a5')

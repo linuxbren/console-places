@@ -30,12 +30,12 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
     <td align="center">A real Trash with restore · Nord</td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/settings.png" alt="The settings page: tabs at startup, theme, sorting, previews, places in the file list, video previews and updates, over a Word document preview (Osaka Jade theme)"></td>
+    <td><img src="docs/screenshots/settings.png" alt="The settings page: tabs at startup, theme, sorting, previews, text and code word wrap, file icons, frequent folders, places in the file list, video previews and updates (Catppuccin theme)"></td>
     <td><img src="docs/screenshots/gif-preview.webp" alt="An animated GIF (a Mandelbrot zoom) playing in the preview pane, sharp sixel in foot (Ristretto theme)"></td>
     <td><img src="docs/screenshots/select-text.png" alt="Dragging over a syntax-highlighted Go file in the preview selects it; letting go copies the file's text (Hackerman theme)"></td>
   </tr>
   <tr>
-    <td align="center">Settings (<code>S</code>) · Osaka Jade</td>
+    <td align="center">Settings (<code>S</code>) · Catppuccin</td>
     <td align="center">Animated GIFs, played in the preview · Ristretto</td>
     <td align="center">Drag in the preview to copy text · Hackerman</td>
   </tr>
@@ -48,6 +48,16 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
     <td align="center">Places in the list, Tailscale computers · Catppuccin</td>
     <td align="center">Office documents previewed · Gruvbox</td>
     <td align="center">Rename many at once · Everforest</td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/frequent.png" alt="Places (b) with a Frequent section: the folders visited most, ranked by frecency, under the bookmarks; shift+b pins one, d removes it (Tokyo Night theme)"></td>
+    <td><img src="docs/screenshots/icons.png" alt="Nerd Font file-type icons in the file list, and a Go file previewed with long lines cut short instead of wrapped (Gruvbox theme)"></td>
+    <td><img src="docs/screenshots/code-wrap.png" alt="The same Go file with code word wrap turned on with w (Kanagawa theme)"></td>
+  </tr>
+  <tr>
+    <td align="center">Frequent folders in places (<code>b</code>) · Tokyo Night</td>
+    <td align="center">File icons; code isn't wrapped by default · Gruvbox</td>
+    <td align="center"><code>w</code> wraps code too · Kanagawa</td>
   </tr>
 </table>
 
@@ -126,7 +136,10 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
     disconnects (if something is still using it, console-places names what and forces it on a second
     try), `d` forgets one. Connections go through gvfs, as in Nautilus, so they're
     shared with it. A connected computer's preview shows its address, the protocol, who you're signed
-    in as and its free space, and folders on it are titled `computer: /path`.
+    in as and its free space, and folders on it are titled `computer: /path`. Network mounts you
+    made yourself with sshfs or rclone are listed under Network too; kernel SMB/NFS mounts
+    (`mount.cifs`, `mount.nfs`, fstab) aren't, since only root can unmount them, but their folders
+    are still browsable.
 - **New window** — `ctrl+n` opens console-places in this folder in a new terminal window
   (`xdg-terminal-exec`, the way Omarchy launches terminals, or `$TERMINAL`).
 
@@ -225,13 +238,13 @@ console-places --cwd-file /tmp/console-places.cwd   # write final dir on quit, f
 
 From a checkout, `go run . [dir]` works the same way.
 
-Settings (theme, hidden files, wrap, sort, bookmarks, servers you connected to) are remembered in
+Settings (theme, hidden files, text and code wrap, file icons, sort, bookmarks, servers you connected to) are remembered in
 `~/.config/console-places/config.json`; frequent folders in `frequent.json` beside it.
 
 ## Keys
 
 Arrow keys first; vim keys work too. Press `?` for every action: type to find one, `enter` runs it.
 `space` select · `SUPER+C`/`X`/`V` copy/cut/paste (plain `c`/`x`/`v` work too) · `d` trash · `ctrl+z` undo · `F2` rename (several selected: bulk rename) ·
-`n`/`N` new file/folder · `/` filter · `f` find · `F` search inside files · `X` extract · `Z` compress · `ctrl+t`/`ctrl+w` tabs · `ctrl+n` new window · `alt+t` trash · `s` sort · `S` settings · `b` places, drives, network · `B` bookmark · `i` properties · `P` permissions · `o` open with · `T` theme. Drag over the preview to copy text.
+`n`/`N` new file/folder · `/` filter · `f` find · `F` search inside files · `X` extract · `Z` compress · `ctrl+t`/`ctrl+w` tabs · `ctrl+n` new window · `alt+t` trash · `s` sort · `w` word wrap (code or text, whichever is shown) · `S` settings · `b` places: bookmarks, frequent folders, drives, network (`shift+b` on a frequent folder pins it, `d` removes it) · `B` bookmark · `i` properties · `P` permissions · `o` open with · `T` theme. Drag over the preview to copy text.
 
 `SUPER+C` needs a one-time Hyprland snippet on Omarchy — see [Install](#install).
