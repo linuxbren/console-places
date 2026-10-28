@@ -19,7 +19,7 @@ func selModel(t *testing.T, wrap bool) model {
 	os.WriteFile(filepath.Join(dir, "main.go"), []byte(selSource), 0o644)
 	m := testModel(t, dir)
 	m.width = 100
-	m.cfg.Wrap = wrap
+	m.cfg.Wrap, m.cfg.WrapCode = wrap, wrap
 	m.reload("main.go")
 	m.refreshPreview()
 	if m.pv.segs == nil {

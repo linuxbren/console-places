@@ -171,7 +171,7 @@ var bindingGroups = []bindingGroup{
 	}},
 	{"View", []binding{
 		{actHidden, []string{"."}, ".", "show / hide hidden files"},
-		{actWrap, []string{"w"}, "w", "preview word wrap (text and source)"},
+		{actWrap, []string{"w"}, "w", "preview word wrap (code or text, whichever is shown)"},
 		{actMarkdown, []string{"m"}, "m", "markdown preview: rendered / source"},
 		{actSort, []string{"s"}, "s", "cycle sort: name, size, modified, type"},
 		{actFilter, []string{"/"}, "/", "filter this folder"},

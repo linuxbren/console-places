@@ -10,7 +10,8 @@ import (
 type config struct {
 	Theme      string   `json:"theme,omitempty"`
 	ShowHidden bool     `json:"show_hidden"`
-	Wrap       bool     `json:"wrap"`
+	Wrap       bool     `json:"wrap"`      // wrap text in the preview (prose, plain text, markdown source)
+	WrapCode   bool     `json:"wrap_code"` // wrap source code too; off truncates long code lines
 	Sort       string   `json:"sort,omitempty"`
 	SortDesc   bool     `json:"sort_desc,omitempty"`
 	Bookmarks  []string `json:"bookmarks,omitempty"`

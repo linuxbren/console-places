@@ -83,6 +83,7 @@ func classify(e entry) previewKind {
 type previewOpts struct {
 	width, rows  int
 	wrap, hidden bool
+	wrapCode     bool // wrap syntax-highlighted code (config.WrapCode); wrap covers prose
 	mdSource     bool // show markdown as highlighted source instead of rendered
 	line         int  // 1-based line to show and highlight (from content search); 0 for none
 	proto        gfxProto
@@ -104,6 +105,7 @@ type preview struct {
 	frame   int
 	loading bool
 	blocks  bool // lines are a half-block picture, not text
+	code    bool // syntax-highlighted source code: wraps per config.WrapCode
 	hlFrom  int  // lines[hlFrom:hlTo] are the highlighted source line, when hlTo > hlFrom
 	hlTo    int
 	// For copying a mouse selection as the file's own text (text previews
@@ -384,6 +386,9 @@ func textPreview(p preview, path string, e entry, o previewOpts) preview {
 	if hl, lang := highlight(joined, e.name, o.syn); lang != "" {
 		joined = hl
 		p.meta = lang + " · " + humanSize(e.size)
+		if p.code = !proseLanguage(lang); p.code {
+			o.wrap = o.wrapCode
+		}
 	}
 	p.meta += enc
 	var starts []int
@@ -424,6 +429,16 @@ func readLinesFrom(r io.Reader, n, limit int) ([]byte, error) {
 		}
 	}
 	return io.ReadAll(io.LimitReader(br, int64(limit)))
+}
+
+// proseLanguage says whether a highlighted language is prose (markdown source
+// and the like), which wraps like plain text rather than like code.
+func proseLanguage(lang string) bool {
+	switch strings.ToLower(lang) {
+	case "markdown", "restructuredtext", "org", "plaintext", "tex", "groff":
+		return true
+	}
+	return false
 }
 
 // fitLines wraps (or truncates) each line to o.width, keeping ANSI styling.

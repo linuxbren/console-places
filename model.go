@@ -427,7 +427,7 @@ func (m model) previewOpts() previewOpts {
 	if e, ok := m.current(); ok && filepath.Join(m.cwd, e.name) == m.jump.path {
 		line = m.jump.line
 	}
-	return previewOpts{line: line, width: inner[2], rows: rows, wrap: m.cfg.Wrap, hidden: m.cfg.ShowHidden, mdSource: m.cfg.MarkdownSource,
+	return previewOpts{line: line, width: inner[2], rows: rows, wrap: m.cfg.Wrap, wrapCode: m.cfg.WrapCode, hidden: m.cfg.ShowHidden, mdSource: m.cfg.MarkdownSource,
 		proto: m.proto, cellW: m.cellW, cellH: m.cellH, bg: m.theme.Bg, syn: m.syn, videoPlay: m.cfg.VideoPlay}
 }
 
@@ -471,7 +471,7 @@ func (m *model) refreshPreview() tea.Cmd {
 	if m.arc != nil {
 		where = m.arc.file + "|" + m.arc.dir // inside an archive
 	}
-	key := fmt.Sprintf("%s|%s|%d|%d|%t|%t|%t|%d|%d|%s|%dx%d|%s|%s", where, e.name, o.width, o.rows, o.wrap, o.hidden,
+	key := fmt.Sprintf("%s|%s|%d|%d|%t%t|%t|%t|%d|%d|%s|%dx%d|%s|%s", where, e.name, o.width, o.rows, o.wrap, o.wrapCode, o.hidden,
 		o.mdSource, o.line, e.mod.UnixNano(), o.proto, o.cellW, o.cellH, o.bg, o.syn.kw)
 	if key == m.pvKey {
 		return nil
@@ -1047,9 +1047,15 @@ func (m model) perform(act action) (model, tea.Cmd) {
 		m.cfg.save()
 		m.setMsg(map[bool]string{true: "markdown shown as source", false: "markdown rendered"}[m.cfg.MarkdownSource], false)
 	case actWrap:
-		m.cfg.Wrap = !m.cfg.Wrap
+		// w toggles the wrap that applies to what's previewed: code or text.
+		if m.pv.code {
+			m.cfg.WrapCode = !m.cfg.WrapCode
+			m.setMsg(map[bool]string{true: "code wrap on", false: "code wrap off"}[m.cfg.WrapCode], false)
+		} else {
+			m.cfg.Wrap = !m.cfg.Wrap
+			m.setMsg(map[bool]string{true: "text wrap on", false: "text wrap off"}[m.cfg.Wrap], false)
+		}
 		m.cfg.save()
-		m.setMsg(map[bool]string{true: "preview wrap on", false: "preview wrap off"}[m.cfg.Wrap], false)
 	case actSort:
 		keys := []string{"name", "size", "modified", "type"}
 		for i, k := range keys {

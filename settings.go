@@ -101,10 +101,18 @@ func settingsList() []setting {
 				m.pvKey = ""
 				return nil
 			}},
-		{label: "Preview word wrap", choices: []string{"on", "off"},
+		{label: "Text word wrap", choices: []string{"on", "off"},
 			current: func(m model) int { return onOffIndex(m.cfg.Wrap) },
 			apply: func(m *model, i int) tea.Cmd {
 				m.cfg.Wrap = i == 0
+				m.cfg.save()
+				m.pvKey = ""
+				return nil
+			}},
+		{label: "Code word wrap", choices: []string{"on", "off"},
+			current: func(m model) int { return onOffIndex(m.cfg.WrapCode) },
+			apply: func(m *model, i int) tea.Cmd {
+				m.cfg.WrapCode = i == 0
 				m.cfg.save()
 				m.pvKey = ""
 				return nil

@@ -157,7 +157,10 @@ func (m model) commands() []command {
 		{title: "Narrower preview", act: actPreviewNarrower, group: "View"},
 		{title: "Scroll preview down", act: actScrollDown, group: "View"},
 		{title: "Scroll preview up", act: actScrollUp, group: "View"},
-		{title: onOff(m.cfg.Wrap, "Preview word wrap: turn off", "Preview word wrap: turn on"), synonyms: "wrap lines truncate", act: actWrap, group: "View"},
+		{id: "wrap-text", title: onOff(m.cfg.Wrap, "Text word wrap: turn off", "Text word wrap: turn on"), synonyms: "wrap lines truncate prose preview",
+			run: func(mm *model) tea.Cmd { mm.cfg.Wrap = !mm.cfg.Wrap; mm.cfg.save(); mm.pvKey = ""; return nil }, group: "View"},
+		{id: "wrap-code", title: onOff(m.cfg.WrapCode, "Code word wrap: turn off", "Code word wrap: turn on"), synonyms: "wrap lines truncate source preview",
+			run: func(mm *model) tea.Cmd { mm.cfg.WrapCode = !mm.cfg.WrapCode; mm.cfg.save(); mm.pvKey = ""; return nil }, group: "View"},
 		{title: onOff(m.cfg.MarkdownSource, "Render markdown", "Show markdown source"), synonyms: "md preview raw", act: actMarkdown, group: "View"},
 		{title: "Refresh", synonyms: "reload", act: actRefresh, group: "View"},
 

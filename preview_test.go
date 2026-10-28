@@ -65,7 +65,9 @@ func testOpts(width int, wrap bool) previewOpts {
 
 func TestHighlightKeepsWrapWithinWidth(t *testing.T) {
 	dir, e := writeTemp(t, "a.go", "package main\n\n// a rather long comment line that must wrap inside the pane width\nfunc main() {}\n")
-	p := buildPreview(dir, e, testOpts(24, true))
+	o := testOpts(24, true)
+	o.wrapCode = true
+	p := buildPreview(dir, e, o)
 	if !strings.Contains(p.meta, "Go") {
 		t.Errorf("expected Go in meta, got %q", p.meta)
 	}
@@ -76,6 +78,25 @@ func TestHighlightKeepsWrapWithinWidth(t *testing.T) {
 		if ansi.StringWidth(l) > 24 {
 			t.Errorf("line %q wider than 24", ansi.Strip(l))
 		}
+	}
+}
+
+// Code truncates long lines unless code wrap is on; prose still wraps.
+func TestCodeTruncatesByDefault(t *testing.T) {
+	long := "// " + strings.Repeat("word ", 20)
+	dir, e := writeTemp(t, "a.go", "package main\n"+long+"\n")
+	p := buildPreview(dir, e, testOpts(24, true)) // text wrap on, code wrap off
+	if !p.code || len(p.lines) != 2 || !strings.HasSuffix(ansi.Strip(p.lines[1]), "…") {
+		t.Errorf("code should truncate: %q", p.lines)
+	}
+	o := testOpts(24, true)
+	o.wrapCode = true
+	if p := buildPreview(dir, e, o); len(p.lines) < 3 {
+		t.Errorf("code wrap on should wrap: %q", p.lines)
+	}
+	dir, e = writeTemp(t, "a.txt", long+"\n")
+	if p := buildPreview(dir, e, testOpts(24, true)); p.code || len(p.lines) < 3 {
+		t.Errorf("text should wrap: %q", p.lines)
 	}
 }
 

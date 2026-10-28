@@ -59,7 +59,8 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
   (a spreadsheet's first sheet as a table), binary plists, UTF-16 text (`.reg`, `.inf`, `.strings`…),
   `.lnk` shortcuts (where they point), `.exe`/`.dll` details (product, company, version) and a Mac
   `.app`'s name and version.
-- **Word-wrapped preview** — long lines wrap at word boundaries; `w` toggles truncation.
+- **Word-wrapped preview** — long lines of text wrap at word boundaries, while code truncates (`…`) by
+  default; `w` toggles wrapping for whichever is shown, and Settings has both (*Text word wrap*, *Code word wrap*).
 - **Copy text from the preview** — drag over the preview to select; letting go copies it to the clipboard
   as the file's own text (tabs kept, wrapped lines joined). The selection stays inside the preview pane;
   dragging past its edge scrolls. A click or any key clears it.
@@ -75,7 +76,7 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
   you were last in; started with a folder (`console-places ~/Music`), that folder's tab is active (added if
   none is open there). Settings can restore tabs only when no folder is given, or never.
 - **Settings page** — `S` lists every preference (tabs at startup, theme, hidden files, sort, preview
-  pane, word wrap, markdown, image previews, places in the file list, video previews, updates); `←`/`→` change one, and it's saved straight away.
+  pane, text and code word wrap, markdown, image previews, places in the file list, video previews, updates); `←`/`→` change one, and it's saved straight away.
 - **Keeps itself up to date** — release binaries check for a new version once a day, install it after
   verifying its checksum, and ask before restarting (tabs come back), listing what's new since your
   version so you can jump straight in. `U` does it by hand; see
