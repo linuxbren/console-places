@@ -1,0 +1,4 @@
+[{"wait":1300},
+ {"key":"right","gap":450},{"key":"down","n":5,"gap":230},{"wait":1800},
+ {"key":"left","n":2,"gap":330},{"key":"up","gap":350},{"key":"right","gap":380},{"key":"down","n":2,"gap":300},{"wait":2100},
+ {"key":"T","gap":650},{"key":"up","n":8,"gap":400,"jit":40},{"key":"up","gap":800},{"key":"enter","gap":200},{"wait":1700}]

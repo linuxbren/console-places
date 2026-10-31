@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "linuxbren.console-places",
+  "name": "Console Places",
+  "version": "0.1.0",
+  "author": "linuxbren",
+  "license": "MIT",
+  "description": "Bar button that opens Console Places, a keyboard-first terminal file manager that follows your live Omarchy theme. Click to open it, click again to focus the window that is already open.",
+  "kinds": ["bar-widget"],
+  "entryPoints": {
+    "barWidget": "Widget.qml"
+  },
+  "barWidget": {
+    "displayName": "Console Places",
+    "description": "Launch or focus the Console Places file manager",
+    "category": "Tools",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

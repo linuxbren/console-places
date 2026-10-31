@@ -1,0 +1,41 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="node_modules/@xterm/xterm/css/xterm.css">
+<style>
+@font-face{font-family:JBMN;src:url(/workspace/console-places-review/shots/fonts/JetBrainsMonoNLNerdFontMono-Regular.ttf);}
+@font-face{font-family:JBMN;font-weight:bold;src:url(/workspace/console-places-review/shots/fonts/JetBrainsMonoNLNerdFontMono-Bold.ttf);}
+html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:#000;cursor:none}
+#bg{position:fixed;inset:0;background-size:cover;background-position:center}
+#win{position:fixed;left:14px;top:14px;right:14px;bottom:14px;border:2px solid rgba(205,214,244,.45);border-radius:0;box-sizing:border-box;padding:10px;background:var(--wb,rgba(30,30,46,.9))}
+#t{width:100%;height:100%}
+.xterm-viewport{background:transparent!important;overflow:hidden!important}
+.xterm .xterm-scrollable-element > .scrollbar{display:none!important}
+</style></head><body><div id="bg"></div><div id="win"><div id="t"></div></div>
+<script src="node_modules/@xterm/xterm/lib/xterm.js"></script>
+<script src="node_modules/@xterm/addon-image/lib/addon-image.js"></script>
+<script>
+const hexA=(h,a)=>'rgba('+[1,3,5].map(i=>parseInt(h.substr(i,2),16)).join(',')+','+a+')';
+window.setup=async function(o){
+  document.getElementById('bg').style.backgroundImage='url('+o.bg+')';
+  await document.fonts.load(o.fontSize+'px JBMN');await document.fonts.load('bold '+o.fontSize+'px JBMN');
+  window.baseTheme=o.theme;
+  const win=document.getElementById('win');
+  const setBg=(hex)=>{win.style.setProperty('--wb',hexA(hex,o.alpha));};
+  setBg(o.theme.background);
+  const term=new Terminal({cols:80,rows:24,fontFamily:'JBMN',fontSize:o.fontSize,lineHeight:1.0,allowTransparency:true,
+    theme:Object.assign({},o.theme,{background:'rgba(0,0,0,0)'}),cursorStyle:'bar',cursorInactiveStyle:'none',customGlyphs:true,drawBoldTextInBrightColors:false,scrollback:0});
+  window.term=term;
+  term.loadAddon(new ImageAddon.ImageAddon({sixelSupport:true,iipSupport:false,kittySupport:false,sixelSizeLimit:50000000,pixelLimit:16777216}));
+  term.open(document.getElementById('t'));
+  term.parser.registerOscHandler(11,d=>{ if(/^#[0-9a-fA-F]{6}$/.test(d)) setBg(d); return true;});
+  term.parser.registerOscHandler(111,d=>{ setBg(o.theme.background); return true;});
+  term.parser.registerOscHandler(10,d=>true);
+  const cell=term._core._renderService.dimensions.css.cell;
+  const t=document.getElementById('t').getBoundingClientRect();
+  const cols=Math.floor(t.width/cell.width), rows=Math.floor(t.height/cell.height);
+  term.resize(cols,rows);
+  term.onData(d=>window.toPty(d));
+  term.write('\x1b[?25l');
+  return {cols,rows,cw:cell.width,ch:cell.height,tw:t.width,th:t.height};
+};
+window.feed=(b64)=>new Promise(r=>{const s=atob(b64);const u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);term.write(u,r);});
+</script></body></html>
