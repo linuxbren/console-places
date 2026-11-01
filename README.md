@@ -257,6 +257,6 @@ Settings (theme, hidden files, text and code wrap, file icons, sort, bookmarks, 
 
 Arrow keys first; vim keys work too. Press `?` for every action: type to find one, `enter` runs it.
 `space` select · `SUPER+C`/`X`/`V` copy/cut/paste (plain `c`/`x`/`v` work too) · `d` trash · `ctrl+z` undo · `F2` rename (several selected: bulk rename) ·
-`n`/`N` new file/folder · `/` filter · `f` find · `F` search inside files · `X` extract · `Z` compress · `ctrl+t`/`ctrl+w` tabs · `ctrl+n` new window · `alt+t` trash · `s` sort · `w` word wrap (code or text, whichever is shown) · `S` settings · `b` places: bookmarks, frequent folders, drives, network (`shift+b` on a frequent folder pins it, `d` removes it) · `B` bookmark · `i` properties · `P` permissions · `o` open with · `T` theme. Drag over the preview to copy text.
+`n`/`N` new file/folder · `/` filter · `f` find · `F` search inside files · `X` extract · `Z` compress · `ctrl+t`/`ctrl+w` tabs · `ctrl+n` new window · `alt+t` trash · `s` sort · `w` word wrap (code or text, whichever is shown) · `S` settings · `b` places: bookmarks, frequent folders, drives, phones, network (`shift+b` on a frequent folder pins it, `d` removes it) · `B` bookmark · `i` properties · `P` permissions · `o` open with · `T` theme. Drag over the preview to copy text.
 
 `SUPER+C` needs a one-time Hyprland snippet on Omarchy — see [Install](#install).

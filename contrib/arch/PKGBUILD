@@ -23,7 +23,7 @@ optdepends=(
   'xdg-utils: open files in their default app'
   'xdg-terminal-exec: open a terminal here'
   'udisks2: mount drives'
-  'gvfs: connect to servers (network places)'
+  'gvfs: network places and phones'
   'gvfs-smb: Windows, Mac and Samba shares'
   'gvfs-nfs: NFS shares'
   'gvfs-mtp: Android phones over USB'
