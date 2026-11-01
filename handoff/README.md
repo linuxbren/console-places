@@ -4,7 +4,7 @@ This folder is a handoff from Brenden's previous Grok Bot to his new one. It is 
 assistant picking this up. It covers only his Console Places work and his X posting rules. Personal
 details and automations were deliberately left out; ask him directly for anything else you need.
 
-Snapshot taken 2026-10-31. Verify anything time-sensitive (stars, releases, posts) before acting on it.
+Snapshot taken 2026-10-31, updated 2026-11-01 for v0.13.0. Verify anything time-sensitive (stars, releases, posts) before acting on it.
 
 ## Who
 
@@ -19,7 +19,7 @@ Snapshot taken 2026-10-31. Verify anything time-sensitive (stars, releases, post
   `linuxbren/tidefiles` redirects here.
 - A keyboard-first terminal file manager for [Omarchy](https://omarchy.org) (Arch-based; he sometimes
   spells it "Omarki"). An alternative to yazi.
-- Latest release: **v0.12.0** (2026-10-28).
+- Latest release: **v0.13.0** (2026-10-31, 9:59pm CT). Previous: v0.12.0 (2026-10-28).
 - Verified features:
   - Follows the live Omarchy theme (`omarchy-theme-color`, or
     `~/.local/state/omarchy/current/theme/colors.toml`).
@@ -27,9 +27,13 @@ Snapshot taken 2026-10-31. Verify anything time-sensitive (stars, releases, post
   - Fuzzy find. Search inside files.
   - Tabs, trash, bulk rename.
   - Works outside Omarchy with built-in themes (plain Arch, Ubuntu, any Linux).
+  - **New in v0.13.0: phones in places.** Android (`mtp://`), iPhone (`afc://`) and cameras
+    (`gphoto2://`) show up under Phones in the `b` sidebar. `enter` mounts one; `u` or `d` ejects it.
+    Needs gvfs-mtp (Android), gvfs-afc plus usbmuxd (iPhone), or gvfs-gphoto2 (cameras). The
+    README has a Phones section with screenshots (commit `4d14362`).
 - Install options:
   - Release tarballs, plus `.deb` / `.rpm` / `.apk` packages, for amd64 and arm64.
-  - Arch PKGBUILD in `contrib/arch` (pkgver 0.12.0).
+  - Arch PKGBUILD in `contrib/arch` (pkgver 0.13.0).
   - `go install github.com/linuxbren/console-places@latest`
   - Release binaries update themselves.
 - Not packaged anywhere public yet:
@@ -117,6 +121,7 @@ alternate Sebastian reply existed but its text wasn't saved.
   and an autobump workflow. Its `.github/` folder only runs once copied into a tap repo.
 - Everything passed: install, `brew test`, `brew audit --strict --new --online`, and `brew style`.
 - It's a formula, not a cask, and it's Linux-only (`depends_on :linux`).
+- The formula still points at v0.12.0; bump its URL and sha256 to v0.13.0 before publishing.
 - It builds with `main.version=0.12.0` (no leading `v`). That keeps the self-updater off in brew
   installs. The side effect is that pressing U in the app calls it a "development build".
 - He said to **hold off** on publishing `linuxbren/homebrew-tap`. If he changes his mind:
