@@ -6,8 +6,8 @@ github.com/alecthomas/chroma/v2 v2.27.0 h1:FodwmyOBgJULFYmDqibcp9pvfDLWdtPRh9v/r
 github.com/alecthomas/chroma/v2 v2.27.0/go.mod h1:NjJ3ciIgrqBNeIkWZ4e46nseoLDslxU1LmfCoL+wcY8=
 github.com/alecthomas/repr v0.5.2 h1:SU73FTI9D1P5UNtvseffFSGmdNci/O6RsqzeXJtP0Qs=
 github.com/alecthomas/repr v0.5.2/go.mod h1:Fr0507jx4eOXV7AlPV6AVZLYrLIuIeSOWtW57eE/O/4=
-github.com/allisonhere/tideui v0.2.4 h1:dPzcjTxCrDxKhS687tpF+Ke6TWMTm3e1F5psmfWJ0jU=
-github.com/allisonhere/tideui v0.2.4/go.mod h1:gGvJLtvSPce3sf/1caa7xWw/YjXHKi311T6DUaLs4gQ=
+github.com/allisonhere/tideui v0.3.1 h1:4NJfuXfwVpNGvIuu8CvVcSbvRJd0wysKKNJz6F39sFM=
+github.com/allisonhere/tideui v0.3.1/go.mod h1:hg3233H/76k3Fi8RP07d4wD309+7Jr60zJa06OebLZQ=
 github.com/aymanbagabas/go-osc52/v2 v2.0.1 h1:HwpRHbFMcZLEVr42D4p7XBqjyuxQH5SMiErDT4WkJ2k=
 github.com/aymanbagabas/go-osc52/v2 v2.0.1/go.mod h1:uYgXzlJ7ZpABp8OJ+exZzJJhRNQ2ASbcXHWsFqH8hp8=
 github.com/aymanbagabas/go-udiff v0.2.0 h1:TK0fH4MteXUDspT88n8CKzvK0X9O2xu9yQjWpi6yML8=
