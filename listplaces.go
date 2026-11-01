@@ -7,9 +7,9 @@ package main
 // mounts or connects as in places (b), which stays the full list with the
 // actions (unmount, forget, browse, connect…).
 //
-// Drawing never waits on lsblk or gio: drives and network locations come from
-// a scan made in the background, at start, every placesRescan while shown,
-// and right after anything is mounted, unmounted or connected.
+// Drawing never waits on lsblk or gio: drives, phones and network locations
+// come from a scan made in the background, at start, every placesRescan while
+// shown, and right after anything is mounted, unmounted or connected.
 
 import (
 	"fmt"
@@ -215,6 +215,7 @@ func (m model) placeRows() []entry {
 	section(secBookmarks, marks)
 	if m.cfg.PlacesInList == placesListAll && m.scan != nil {
 		section(secDrives, m.scan.drives)
+		section(secPhones, m.scan.phones)
 		net := append(append([]place(nil), m.scan.nets...), m.scan.servers(m.cfg.Servers)...)
 		net = append(net, place{name: "Browse network…", section: secNetwork, kind: placeBrowse, info: "find computers"})
 		if m.scan.tailscale {
@@ -249,6 +250,8 @@ func placeKeys(p place) string {
 		text += " · d forgets it"
 	case p.kind == placeDrive && p.path != "":
 		text += " · d unmounts"
+	case p.kind == placePhone && p.path != "":
+		text += " · d ejects"
 	case p.kind == placeNet:
 		text += " · d disconnects"
 	}
@@ -282,6 +285,8 @@ func placeIcon(p place) string {
 		return "★"
 	case p.kind == placeDrive || p.section == secDrives:
 		return "\uf0a0" // nf-fa-hdd_o
+	case p.kind == placePhone || p.section == secPhones:
+		return "\uf3cd" // nf-md-cellphone
 	case p.kind == placeConnect:
 		return "\uf067" // nf-fa-plus
 	case p.kind == placeBrowse:
@@ -303,6 +308,8 @@ func placeSuffix(p place) string {
 		return "not mounted"
 	case p.kind == placeDrive:
 		return humanSize(p.drive.size)
+	case p.kind == placePhone && p.path == "":
+		return "not mounted"
 	}
 	return ""
 }
@@ -322,16 +329,19 @@ func placeAction(p place) string {
 		return "unlocks"
 	case p.kind == placeDrive && p.path == "":
 		return "mounts"
+	case p.kind == placePhone && p.path == "":
+		return "mounts"
 	}
 	return "opens"
 }
 
 // placePreview is the preview of a place row: the folder, or what enter will
-// do. Network folders aren't read here (a slow server would stall the UI).
+// do. Network and phone folders aren't read here (a slow MTP device or
+// server would stall the UI).
 func (m model) placePreview(p place) preview {
 	pv := preview{title: p.name, meta: p.info}
 	switch {
-	case p.path != "" && p.kind != placeNet:
+	case p.path != "" && p.kind != placeNet && p.kind != placePhone:
 		if _, err := os.Stat(p.path); err != nil {
 			pv.lines = []string{"  " + tildePath(p.path), "", "  (missing) · B removes the bookmark"}
 			return pv
@@ -339,6 +349,16 @@ func (m model) placePreview(p place) preview {
 		return dirPreview(pv, p.path, m.previewOpts())
 	case p.kind == placeNet:
 		pv.lines = []string{"  " + p.net.uri, "", "  asking " + p.name + " about itself…", "", "  enter opens it · d disconnects"}
+	case p.kind == placePhone && p.path != "":
+		pv.lines = []string{"  " + p.net.uri, "", "  connected phone or camera", "  enter opens it · d ejects"}
+	case p.kind == placePhone:
+		scheme, _, _ := strings.Cut(p.net.uri, "://")
+		hint := phoneHint(scheme)
+		lines := []string{"  " + p.net.uri, "", "  not mounted · enter mounts"}
+		if hint != "" {
+			lines = append(lines, "  "+hint)
+		}
+		pv.lines = lines
 	case p.kind == placeServer:
 		pv.lines = []string{"  " + p.uri, "", "  saved server, not connected", "  enter connects · d forgets it"}
 	case p.kind == placeConnect:

@@ -459,7 +459,7 @@ func (m *model) refreshPreview() tea.Cmd {
 		if key := "place|" + e.name + "|" + e.placeSig(); m.pvKey != key {
 			m.pv = m.placePreview(*e.pl)
 			m.pvKey, m.pvPath, m.pvScroll = key, "", 0
-			if e.pl.kind == placeNet {
+			if e.pl.kind == placeNet || (e.pl.kind == placePhone && e.pl.path != "") {
 				return netInfoCmd(key, *e.pl)
 			}
 		}

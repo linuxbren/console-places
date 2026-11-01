@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -956,5 +957,169 @@ func TestPrivErrFilePrivateFolder(t *testing.T) {
 	done()
 	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		t.Fatal("folder left behind")
+	}
+}
+
+const gioPhonesFixture = `Drive(0): USB Drive
+  Type: GProxyDrive (GProxyVolumeMonitorUDisks2)
+Volume(0): Backup
+  Type: GProxyVolume (GProxyVolumeMonitorUDisks2)
+  activation_root=file:///run/media/me/Backup
+Mount(0): Backup -> file:///run/media/me/Backup
+  Type: GProxyMount (GProxyVolumeMonitorUDisks2)
+Volume(1): Pixel 8
+  Type: GProxyVolume (GProxyVolumeMonitorMTP)
+  activation_root=mtp://Pixel_8/
+Volume(2): iPhone
+  Type: GProxyVolume (GProxyVolumeMonitorAfc)
+  activation_root=afc://00008030-001A351E1E88002E/
+Mount(1): Canon EOS -> gphoto2://Canon_EOS/
+  Type: GProxyMount (GProxyVolumeMonitorGPhoto2)
+Volume(3): Canon EOS
+  Type: GProxyVolume (GProxyVolumeMonitorGPhoto2)
+  activation_root=gphoto2://Canon_EOS/
+`
+
+func TestParseGioPhones(t *testing.T) {
+	local := map[string]string{"gphoto2://Canon_EOS/": "/run/user/1000/gvfs/gphoto2:host=Canon_EOS"}
+	got := parseGioPhones(gioPhonesFixture, func(uri string) string { return local[uri] })
+	var lines []string
+	for _, p := range got {
+		lines = append(lines, p.name+"|"+p.uri+"|"+p.path+"|"+p.scheme)
+	}
+	want := []string{
+		"Canon EOS|gphoto2://Canon_EOS/|/run/user/1000/gvfs/gphoto2:host=Canon_EOS|gphoto2",
+		"Pixel 8|mtp://Pixel_8/||mtp",
+		"iPhone|afc://00008030-001A351E1E88002E/||afc",
+	}
+	if strings.Join(lines, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("phones:\n%s\nwant\n%s", strings.Join(lines, "\n"), strings.Join(want, "\n"))
+	}
+	if info := phoneInfo(got[1]); info != "Android · not mounted" {
+		t.Errorf("info: %q", info)
+	}
+	if info := phoneInfo(got[0]); info != "gphoto2://Canon_EOS/" {
+		t.Errorf("mounted info: %q", info)
+	}
+}
+
+func TestPhoneMountError(t *testing.T) {
+	ph := phoneVol{name: "Pixel 8", uri: "mtp://Pixel_8/", scheme: "mtp"}
+	if got := phoneMountError(ph, "gio: mtp://Pixel_8/: Location is not mountable\n", errors.New("exit 1"), nil); !strings.Contains(got.Error(), "gvfs-mtp") {
+		t.Errorf("missing backend: %v", got)
+	}
+	var me *missingError
+	if err := phoneMountError(ph, "gio: mtp://Pixel_8/: Location is not mountable\n", errors.New("exit 1"), nil); !errors.As(err, &me) || me.need != "gvfs-mtp" {
+		t.Errorf("should be installable: %v", err)
+	}
+	if got := phoneMountError(ph, "", context.DeadlineExceeded, context.DeadlineExceeded); !strings.Contains(got.Error(), "File transfer") {
+		t.Errorf("timeout hint: %v", got)
+	}
+	if got := phoneMountError(ph, "gio: mtp://Pixel_8/: No volume for device\n", errors.New("exit 1"), nil); !strings.Contains(got.Error(), "File transfer") {
+		t.Errorf("generic hint: %v", got)
+	}
+}
+
+func TestMountAndEjectPhone(t *testing.T) {
+	log := filepath.Join(t.TempDir(), "gio.log")
+	mnt := t.TempDir()
+	fakeTool(t, "gio", `echo "$@" >> `+log+`
+case "$*" in
+mount\ -u*) exit 0 ;;
+mount\ mtp://*) exit 0 ;;
+esac
+exit 0
+`)
+	gioLocalPath = func(uri string) string {
+		if strings.HasPrefix(uri, "mtp://") {
+			return mnt
+		}
+		return ""
+	}
+	gvfsPhones = func() []phoneVol {
+		return []phoneVol{{name: "Pixel 8", uri: "mtp://Pixel_8/", scheme: "mtp"}}
+	}
+	t.Cleanup(func() {
+		gioLocalPath = func(string) string { return "" }
+		gvfsPhones = func() []phoneVol { return nil }
+	})
+
+	m, home := homeModel(t)
+	m = press(t, m, "b")
+	body := ansi.Strip(m.View())
+	for _, want := range []string{"Phones", "Pixel 8", "Android · not mounted"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("places is missing %q:\n%s", want, body)
+		}
+	}
+	var order []string
+	for _, p := range m.modal.places {
+		if len(order) == 0 || order[len(order)-1] != p.section {
+			order = append(order, p.section)
+		}
+	}
+	joined := strings.Join(order, ",")
+	if !strings.Contains(joined, "Phones") {
+		t.Fatalf("sections: %v", order)
+	}
+	if i, j := strings.Index(joined, "Drives"), strings.Index(joined, "Phones"); i >= 0 && j >= 0 && i > j {
+		t.Fatalf("Phones should follow Drives: %v", order)
+	}
+
+	sel := -1
+	for i, p := range m.modal.places {
+		if p.kind == placePhone {
+			sel = i
+		}
+	}
+	m.modal.sel = sel
+	m, cmd := m.handleModalKey(tea.KeyMsg{Type: tea.KeyEnter})
+	m, _ = drive1(t, m, cmd)
+	if m.cwd != mnt || m.msgErr || m.msg != "mounted Pixel 8" {
+		t.Fatalf("mounted: cwd %s msg %q", m.cwd, m.msg)
+	}
+	b, _ := os.ReadFile(log)
+	if !strings.Contains(string(b), "mount mtp://Pixel_8/") {
+		t.Fatalf("gio saw:\n%s", b)
+	}
+
+	// Now listed as mounted; u ejects.
+	gvfsPhones = func() []phoneVol {
+		return []phoneVol{{name: "Pixel 8", uri: "mtp://Pixel_8/", path: mnt, scheme: "mtp"}}
+	}
+	m = press(t, m, "b")
+	for i, p := range m.modal.places {
+		if p.kind == placePhone {
+			m.modal.sel = i
+		}
+	}
+	m, cmd = m.handleModalKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'u'}})
+	if m.cwd != home {
+		t.Fatalf("tab should leave the phone: %s", m.cwd)
+	}
+	m, _ = drive1(t, m, cmd)
+	b, _ = os.ReadFile(log)
+	if !strings.Contains(string(b), "mount -u mtp://Pixel_8/") || m.msg != "ejected Pixel 8" {
+		t.Fatalf("eject: %q\n%s", m.msg, b)
+	}
+}
+
+func TestPhonePlacePreview(t *testing.T) {
+	m := testModel(t, t.TempDir())
+	p := phonePlace(phoneVol{name: "Pixel 8", uri: "mtp://Pixel_8/", scheme: "mtp"})
+	pv := m.placePreview(p)
+	joined := strings.Join(pv.lines, "\n")
+	if !strings.Contains(joined, "not mounted") || !strings.Contains(joined, "File transfer") {
+		t.Fatalf("unmounted preview:\n%s", joined)
+	}
+	p.path = "/run/user/1000/gvfs/mtp:host=Pixel_8"
+	p.net.path = p.path
+	pv = m.placePreview(p)
+	joined = strings.Join(pv.lines, "\n")
+	if strings.Contains(joined, "DCIM") { // must not readdir a phone folder
+		t.Fatalf("mounted preview must not list the folder:\n%s", joined)
+	}
+	if !strings.Contains(joined, "ejects") {
+		t.Fatalf("mounted preview:\n%s", joined)
 	}
 }

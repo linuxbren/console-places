@@ -13,8 +13,9 @@ import (
 )
 
 // Places (b) is console-places' sidebar, in Nautilus' sections: the usual
-// folders and the Trash, bookmarks, drives (mounted or not) and network
-// locations (connected, saved, or a new one).
+// folders and the Trash, bookmarks, drives (mounted or not), phones and
+// cameras (MTP/AFC/gphoto2), and network locations (connected, saved, or a
+// new one).
 
 type placeKind int
 
@@ -22,6 +23,7 @@ const (
 	placeDir     placeKind = iota // a folder to open
 	placeDrive                    // a drive: open, or mount (unlock) first
 	placeNet                      // a connected network location
+	placePhone                    // a phone or camera: open, or mount first
 	placeServer                   // a saved server, not connected
 	placeConnect                  // "Connect to server…"
 	placeBrowse                   // "Browse network…"
@@ -31,7 +33,8 @@ const (
 const (
 	secBookmarks = "Bookmarks"
 	// secFrequent (frequent.go) comes next
-	secDrives  = "Drives"
+	secDrives = "Drives"
+	// secPhones (phones.go) comes next
 	secNetwork = "Network"
 )
 
@@ -88,6 +91,9 @@ func (m model) places() []place {
 	for _, p := range sc.drives {
 		add(p)
 	}
+	for _, p := range sc.phones {
+		add(p)
+	}
 	for _, p := range sc.nets {
 		add(p)
 	}
@@ -102,14 +108,14 @@ func (m model) places() []place {
 	return out
 }
 
-// placeScan is what places reads from the system: drives (lsblk, statfs)
-// and connected network locations (gio, /proc/self/mounts). Each lookup
-// can take a moment, so the file list's places rows use a copy made in the
-// background (see listplaces.go).
+// placeScan is what places reads from the system: drives (lsblk, statfs),
+// phones/cameras (gio mount -li) and connected network locations (gio,
+// /proc/self/mounts). Each lookup can take a moment, so the file list's
+// places rows use a copy made in the background (see listplaces.go).
 type placeScan struct {
-	drives, nets []place
-	connected    map[string]bool // connected URIs, without a trailing slash
-	tailscale    bool            // tailscale is installed
+	drives, nets, phones []place
+	connected            map[string]bool // connected URIs, without a trailing slash
+	tailscale            bool            // tailscale is installed
 }
 
 func scanPlaces() placeScan {
@@ -128,6 +134,9 @@ func scanPlaces() placeScan {
 		if nm.path != "" {
 			sc.nets = append(sc.nets, place{name: nm.name, path: nm.path, section: secNetwork, kind: placeNet, net: nm, info: nm.uri})
 		}
+	}
+	for _, ph := range gvfsPhones() {
+		sc.phones = append(sc.phones, phonePlace(ph))
 	}
 	return sc
 }
@@ -153,7 +162,7 @@ func (m *model) openPlacesAt(sel int) {
 	items := make([]menuItem, len(ps))
 	for i, p := range ps {
 		items[i] = menuItem{label: p.name, suffix: p.info, value: p.path,
-			muted: p.missing || p.kind == placeServer || p.kind == placeConnect || p.kind == placeBrowse || p.kind == placeTailnet || (p.kind == placeDrive && p.path == "")}
+			muted: p.missing || p.kind == placeServer || p.kind == placeConnect || p.kind == placeBrowse || p.kind == placeTailnet || (p.kind == placeDrive && p.path == "") || (p.kind == placePhone && p.path == "")}
 		if p.path == trashFilesDir() {
 			items[i].suffix = ""
 		}
@@ -210,6 +219,10 @@ func (m model) placesBody(md *modal, inner int) []string {
 			h[0].Label = "mount"
 		case p.kind == placeDrive:
 			h = append(h, tideui.SoftHint{Key: "u", Label: "unmount"})
+		case p.kind == placePhone && p.path == "":
+			h[0].Label = "mount"
+		case p.kind == placePhone:
+			h = append(h, tideui.SoftHint{Key: "u", Label: "eject"})
 		case p.kind == placeNet:
 			h = append(h, tideui.SoftHint{Key: "u", Label: "disconnect"})
 		case p.kind == placeServer:
@@ -243,7 +256,7 @@ func (m model) handlePlacesKey(md *modal, key string) (model, tea.Cmd, bool) {
 		return m, m.openPlace(p), true
 	case "u":
 		if !unmountable(p) {
-			m.setMsg("only mounted drives and network locations can be unmounted", true)
+			m.setMsg("only mounted drives, phones and network locations can be unmounted", true)
 			return m, nil, true
 		}
 		m.modal = nil
@@ -272,18 +285,21 @@ func (m model) handlePlacesKey(md *modal, key string) (model, tea.Cmd, bool) {
 }
 
 func unmountable(p place) bool {
-	return (p.kind == placeDrive && p.path != "") || p.kind == placeNet
+	return (p.kind == placeDrive && p.path != "") || p.kind == placeNet || (p.kind == placePhone && p.path != "")
 }
 
 func forgettable(p place) bool { return p.bookmark || p.frequent || p.kind == placeServer }
 
-// unmountPlace unmounts a drive or disconnects a network location.
+// unmountPlace unmounts a drive or disconnects a network location or phone.
 func (m *model) unmountPlace(p place) tea.Cmd {
 	switch {
 	case p.kind == placeDrive:
 		m.leaveMount(p.path)
 		m.setMsg("unmounting "+p.name+"…", false)
 		return unmountDrive(p.drive)
+	case p.kind == placePhone:
+		m.setMsg("ejecting "+p.name+"…", false)
+		return m.disconnect(p.net)
 	}
 	m.setMsg("disconnecting "+p.name+"…", false)
 	return m.disconnect(p.net)
@@ -314,6 +330,10 @@ func (m *model) openPlace(p place) tea.Cmd {
 		return m.openTailnet()
 	case p.kind == placeServer:
 		return m.connect(p.uri, false)
+	case p.kind == placePhone && p.path == "":
+		scheme, _, _ := strings.Cut(p.net.uri, "://")
+		m.setMsg("mounting "+p.name+"…", false)
+		return mountPhone(phoneVol{name: p.name, uri: p.net.uri, scheme: scheme})
 	case p.path != "":
 		m.chdir(p.path, "")
 	case p.drive.locked:

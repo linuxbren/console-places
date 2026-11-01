@@ -28,15 +28,18 @@ const netInfoTimeout = 3 * time.Second
 
 // protocolNames says what each kind of network location is, in plain words.
 var protocolNames = map[string]string{
-	"smb":  "Windows / Samba share (SMB)",
-	"sftp": "SSH (SFTP)",
-	"ssh":  "SSH (SFTP)",
-	"nfs":  "NFS",
-	"ftp":  "FTP",
-	"ftps": "FTP over TLS",
-	"dav":  "WebDAV",
-	"davs": "WebDAV over TLS",
-	"afp":  "Apple File Protocol (AFP)",
+	"smb":     "Windows / Samba share (SMB)",
+	"sftp":    "SSH (SFTP)",
+	"ssh":     "SSH (SFTP)",
+	"nfs":     "NFS",
+	"ftp":     "FTP",
+	"ftps":    "FTP over TLS",
+	"dav":     "WebDAV",
+	"davs":    "WebDAV over TLS",
+	"afp":     "Apple File Protocol (AFP)",
+	"mtp":     "Android phone (MTP)",
+	"afc":     "iPhone (AFC)",
+	"gphoto2": "Camera (gphoto2)",
 }
 
 type netInfoMsg struct {
@@ -188,12 +191,21 @@ func gvfsParts(path string) map[string]string {
 	return out
 }
 
-// displayPath is how a folder is titled: "~/…" at home, and "computer:
-// /path" inside a network location gvfs connected.
+// displayPath is how a folder is titled: "~/…" at home, "computer: /path"
+// inside a network location gvfs connected, and "Pixel 8: /DCIM" on a phone.
 func displayPath(path string) string {
 	gv := gvfsParts(path)
 	if gv == nil {
 		return tildePath(path)
+	}
+	rest := strings.TrimPrefix(path, gvfsRoot()+"/")
+	_, sub, _ := strings.Cut(rest, "/")
+	if phoneSchemeOf(gv["scheme"]) != "" {
+		name := phoneLabel(gv)
+		if name == "" {
+			return tildePath(path)
+		}
+		return name + ": /" + sub
 	}
 	name := gv["host"] + gv["server"]
 	if name == "" {
@@ -202,7 +214,5 @@ func displayPath(path string) string {
 	if s := gv["share"]; s != "" {
 		name += "/" + s
 	}
-	rest := strings.TrimPrefix(path, gvfsRoot()+"/")
-	_, sub, _ := strings.Cut(rest, "/")
 	return name + ": /" + sub
 }

@@ -105,13 +105,14 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
 - **A real Trash** — a `Trash · 12` row is pinned at the bottom of your home folder (and in places;
   `alt+t` jumps there). The trash shows where each item came from and when it was deleted; `r` puts
   it back (as `name (2)` if something is there now), `D` deletes it forever, `E` empties the trash.
-- **Places: bookmarks, drives and network** — `b` is the sidebar, in sections like Nautilus':
+- **Places: bookmarks, drives, phones and network** — `b` is the sidebar, in sections like Nautilus':
   - **Places in the file list** (opt-in) — Settings (`S`) → *Places in the file list* puts your
-    bookmarks (or bookmarks, drives and network) and the Trash below the files in every folder,
+    bookmarks (or bookmarks, drives, phones and network) and the Trash below the files in every folder,
     set apart by a gap and coloured section names. Down stops at the last file (held down, it stays
     there); one more press goes into them. *Browse network…* and *Connect to server…* end the
-    Network section. `enter` opens, mounts or connects; `d` unmounts a drive, disconnects a
-    network location, removes a bookmark or forgets a saved server (never touching files).
+    Network section. `enter` opens, mounts or connects; `d` unmounts a drive, ejects a phone,
+    disconnects a network location, removes a bookmark or forgets a saved server (never touching
+    files).
   - **Bookmarks** — `B` bookmarks the folder you're in (`B` again removes it); bookmarked folders
     show a `★`.
   - **Frequent** — the ten folders you go to most, ranked by frecency (visits, weighted by how
@@ -126,6 +127,12 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
     with free space. `enter` mounts and opens one (an encrypted one asks for its passphrase); `u`
     unmounts it, and a USB drive is then powered off so it's safe to unplug. Uses udisks: no root,
     and your desktop asks for a password where one is needed.
+  - **Phones** — a plugged-in Android phone (`mtp://`), iPhone (`afc://`) or camera (`gphoto2://`)
+    shows up under Phones, mounted or not. `enter` mounts it through gvfs (as in Nautilus) and
+    opens the folder; `u` (or `d` in the file-list places) ejects it. Folders on it are titled
+    `Pixel 8: /DCIM`. Android needs `gvfs-mtp`, the phone unlocked and set to *File transfer*;
+    iPhone needs `gvfs-afc` plus `usbmuxd` and a tap on *Trust*; cameras need `gvfs-gphoto2`.
+    Previews don't list a phone folder (MTP is slow); opening one still works.
   - **Network** — `c` connects to a server: `smb://` (Windows, Mac, Samba), `sftp://` (anything with
     ssh), `nfs://`, `ftp://`, `dav://`; `\\pc\share` and `user@host:/path` work too. Passwords and
     other questions are asked inside console-places; `ctrl+s` at the password saves it in your keyring,
@@ -143,8 +150,9 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
 - **New window** — `ctrl+n` opens console-places in this folder in a new terminal window
   (`xdg-terminal-exec`, the way Omarchy launches terminals, or `$TERMINAL`).
 
-Drives use `udisks2` (`udisksctl`) and `lsblk`. Network locations need `gvfs` plus its backends
-(`gvfs-smb`, `gvfs-nfs`; `gvfs-backends` on Debian/Ubuntu); browsing uses `avahi` and `smbclient`.
+Drives use `udisks2` (`udisksctl`) and `lsblk`. Network locations and phones need `gvfs` plus its
+backends (`gvfs-smb`, `gvfs-nfs`, `gvfs-mtp`, `gvfs-afc`, `gvfs-gphoto2`; `gvfs-backends` on
+Debian/Ubuntu — and `usbmuxd` for iPhones); browsing uses `avahi` and `smbclient`.
 When one is missing, console-places says what it's for
 and offers to install it with your package manager (as root, after you say yes). If your firewall
 (ufw) drops the answers Windows PCs send while browsing, **Browse network…** explains and offers

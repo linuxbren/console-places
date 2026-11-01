@@ -368,7 +368,7 @@ func connectText(uri, out string, err error) string {
 	}
 	scheme, _, _ := strings.Cut(uri, "://")
 	if strings.Contains(msg, "not supported") || strings.Contains(msg, "not mountable") || strings.Contains(msg, "doesn’t implement") || strings.Contains(msg, "doesn't implement") {
-		pkg := map[string]string{"smb": "gvfs-smb", "nfs": "gvfs-nfs", "afp": "gvfs-afp"}[scheme]
+		pkg := map[string]string{"smb": "gvfs-smb", "nfs": "gvfs-nfs", "afp": "gvfs-afp", "mtp": "gvfs-mtp", "afc": "gvfs-afc", "gphoto2": "gvfs-gphoto2"}[scheme]
 		if pkg != "" {
 			return scheme + ":// needs " + pkg + " (gvfs-backends on Debian/Ubuntu)"
 		}
@@ -538,7 +538,14 @@ func (m *model) disconnect(nm netMount) tea.Cmd {
 				}
 				return placeMsg{text: text + " · disconnect again to force it", err: true, busy: nm.uri}
 			}
-			return placeMsg{text: "disconnect " + nm.name + ": " + text, err: true}
+			verb := "disconnect"
+			if phoneSchemes[strings.Split(nm.uri, "://")[0]] {
+				verb = "eject"
+			}
+			return placeMsg{text: verb + " " + nm.name + ": " + text, err: true}
+		}
+		if phoneSchemes[strings.Split(nm.uri, "://")[0]] {
+			return placeMsg{text: "ejected " + nm.name}
 		}
 		return placeMsg{text: "disconnected " + nm.name}
 	}

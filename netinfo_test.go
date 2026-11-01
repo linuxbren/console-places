@@ -11,6 +11,9 @@ func TestDisplayPath(t *testing.T) {
 		"/run/user/1000/gvfs/sftp:host=pc.local,user=me/Applications/Claude.app": "pc.local: /Applications/Claude.app",
 		"/run/user/1000/gvfs/sftp:host=pc.local":                                 "pc.local: /",
 		"/run/user/1000/gvfs/smb-share:server=nas,share=photos/2026":             "nas/photos: /2026",
+		"/run/user/1000/gvfs/mtp:host=Pixel_8/DCIM/Camera":                       "Pixel 8: /DCIM/Camera",
+		"/run/user/1000/gvfs/mtp:host=%5Busb%3A001%2C004%5D/DCIM":                "Phone: /DCIM",
+		"/run/user/1000/gvfs/afc:host=00008030-001A/DCIM":                        "00008030-001A: /DCIM",
 		"/run/user/1000/gvfs": "/run/user/1000/gvfs",
 		"/srv/data":           "/srv/data",
 	} {

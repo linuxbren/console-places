@@ -40,15 +40,17 @@ One `main` package, one file per concern:
   preview with problems, two-pass rename via temp names with RENAME_NOREPLACE and rollback, one undo);
   `dusize.go` (properties' folder sizes: counted off the UI goroutine, size + on disk, hard links once,
   refreshed by `sizeTickMsg`, cancelled when the dialog goes);
-  `places.go` (`b`: sections Places / Bookmarks / Drives / Network; `B` toggles a bookmark);
+  `places.go` (`b`: sections Places / Bookmarks / Drives / Phones / Network; `B` toggles a bookmark);
   `frequent.go` (Frequent section in places: zoxide-style frecency recorded in `navigate`, top 10 of
   200 kept in `frequent.json` beside config.json; optional zoxide database; `B` pins, `d` removes);
   `listplaces.go` (opt-in setting: places rows below every folder's files, the Trash row generalised;
   drives/network from a background scan, never read while drawing); `clipboard.go` (Wayland ext-data-control owner, X11 xclip/xsel,
   wl-copy fallback); `config.go` (`~/.config/console-places/config.json`); `internal/omarchy` theme reading.
-- Drives and network (all listed in places): `drives.go` lsblk → drives that aren't the running
-  system, mounted/unlocked/unmounted via `udisksctl` (no tty, so polkit asks through the desktop
-  agent). `network.go` connects with `gio mount` (gvfs, like Nautilus), relaying each prompt gio
+- Drives, phones and network (all listed in places): `drives.go` lsblk → drives that aren't the
+  running system, mounted/unlocked/unmounted via `udisksctl` (no tty, so polkit asks through the
+  desktop agent). `phones.go` lists Android/iPhone/camera volumes from `gio mount -li` (mtp/afc/
+  gphoto2), mounts with `gio mount` and ejects with `gio mount -u`. `network.go` connects with
+  `gio mount` (gvfs, like Nautilus), relaying each prompt gio
   flushes over a pipe ("…: ") into a modal; the `*connection` pointer is the generation id.
   `keyring.go` saves a password (when ticked) to the Secret Service over D-Bus with gvfs' own
   NetworkPassword attributes, since gio never saves; gvfs finds it next time. `discover.go` browses

@@ -19,9 +19,10 @@ func TestMain(m *testing.M) {
 	os.Setenv("CONSOLE_PLACES_CONFIG", filepath.Join(dir, "config.json"))
 	os.Setenv("XDG_DATA_HOME", filepath.Join(dir, "data"))
 	os.Setenv("CONSOLE_PLACES_UPDATE_URL", "http://127.0.0.1:1/") // never ask GitHub
-	// No real drives, mounts or gvfs locations: tests that need some set them.
+	// No real drives, mounts, phones or gvfs locations: tests that need some set them.
 	blockDevices = func() ([]blockDev, error) { return nil, nil }
 	gvfsMounts = func() []netMount { return nil }
+	gvfsPhones = func() []phoneVol { return nil }
 	gioLocalPath = func(string) string { return "" }
 	mountsText = func() string { return "" }
 	saveSecret = func(netSecret, string) error { return errors.New("no keyring in tests") }

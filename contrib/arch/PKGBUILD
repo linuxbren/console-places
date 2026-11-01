@@ -26,6 +26,10 @@ optdepends=(
   'gvfs: connect to servers (network places)'
   'gvfs-smb: Windows, Mac and Samba shares'
   'gvfs-nfs: NFS shares'
+  'gvfs-mtp: Android phones over USB'
+  'gvfs-afc: iPhones over USB'
+  'gvfs-gphoto2: cameras over USB'
+  'usbmuxd: needed with gvfs-afc for iPhones'
   'avahi: find computers on the network'
   'smbclient: list the shares on a server'
 )
