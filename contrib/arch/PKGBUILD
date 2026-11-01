@@ -3,7 +3,7 @@
 # Build from source with:  makepkg -si   (in this folder)
 # To update: bump pkgver, run `updpkgsums`, then `makepkg --printsrcinfo > .SRCINFO`.
 pkgname=console-places
-pkgver=0.12.0
+pkgver=0.13.0
 pkgrel=1
 pkgdesc="Keyboard-first terminal file manager that follows your Omarchy theme"
 arch=('x86_64' 'aarch64')
@@ -34,7 +34,7 @@ optdepends=(
   'smbclient: list the shares on a server'
 )
 source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
-sha256sums=('a980c1627427f4faf5b6bd946f792c3b9ffcc36e9792c2a55535e5169ee9d542')
+sha256sums=('c70429e392260193e3dea6f91da9ad59bc59b22b326e127373f739c31e44a669')
 
 prepare() {
   cd "$pkgname-$pkgver"

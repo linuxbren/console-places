@@ -1,6 +1,6 @@
 pkgbase = console-places
 	pkgdesc = Keyboard-first terminal file manager that follows your Omarchy theme
-	pkgver = 0.12.0
+	pkgver = 0.13.0
 	pkgrel = 1
 	url = https://github.com/linuxbren/console-places
 	arch = x86_64
@@ -30,7 +30,7 @@ pkgbase = console-places
 	optdepends = smbclient: list the shares on a server
 	conflicts = tidefiles
 	replaces = tidefiles
-	source = console-places-0.12.0.tar.gz::https://github.com/linuxbren/console-places/archive/v0.12.0.tar.gz
-	sha256sums = a980c1627427f4faf5b6bd946f792c3b9ffcc36e9792c2a55535e5169ee9d542
+	source = console-places-0.13.0.tar.gz::https://github.com/linuxbren/console-places/archive/v0.13.0.tar.gz
+	sha256sums = c70429e392260193e3dea6f91da9ad59bc59b22b326e127373f739c31e44a669
 
 pkgname = console-places
