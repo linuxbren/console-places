@@ -5,7 +5,7 @@ go 1.27.0
 require (
 	github.com/AvengeMedia/dankgo v1.6.2
 	github.com/alecthomas/chroma/v2 v2.27.0
-	github.com/allisonhere/tideui v0.2.4
+	github.com/allisonhere/tideui v0.3.1
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/glamour v1.0.0
 	github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834
