@@ -49,7 +49,8 @@ One `main` package, one file per concern:
 - Drives, phones and network (all listed in places): `drives.go` lsblk → drives that aren't the
   running system, mounted/unlocked/unmounted via `udisksctl` (no tty, so polkit asks through the
   desktop agent). `phones.go` lists Android/iPhone/camera volumes from `gio mount -li` (mtp/afc/
-  gphoto2), mounts with `gio mount` and ejects with `gio mount -u`. `network.go` connects with
+  gphoto2; AFC dedupes shadowed mounts, synthesizes media `afc://UDID/` beside `:3` app documents,
+  titles by phone name), mounts with `gio mount` and ejects with `gio mount -u`. `network.go` connects with
   `gio mount` (gvfs, like Nautilus), relaying each prompt gio
   flushes over a pipe ("…: ") into a modal; the `*connection` pointer is the generation id.
   `keyring.go` saves a password (when ticked) to the Secret Service over D-Bus with gvfs' own

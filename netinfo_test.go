@@ -13,7 +13,8 @@ func TestDisplayPath(t *testing.T) {
 		"/run/user/1000/gvfs/smb-share:server=nas,share=photos/2026":             "nas/photos: /2026",
 		"/run/user/1000/gvfs/mtp:host=Pixel_8/DCIM/Camera":                       "Pixel 8: /DCIM/Camera",
 		"/run/user/1000/gvfs/mtp:host=%5Busb%3A001%2C004%5D/DCIM":                "Phone: /DCIM",
-		"/run/user/1000/gvfs/afc:host=00008030-001A/DCIM":                        "00008030-001A: /DCIM",
+		"/run/user/1000/gvfs/afc:host=00008030-001A/DCIM":                        "iPhone: /DCIM",
+		"/run/user/1000/gvfs/afc:host=00008160-000E09260E400036:3/":              "App documents on iPhone: /",
 		"/run/user/1000/gvfs": "/run/user/1000/gvfs",
 		"/srv/data":           "/srv/data",
 	} {
@@ -41,5 +42,40 @@ func TestNetInfoLines(t *testing.T) {
 		if !strings.Contains(got, s) {
 			t.Errorf("lacks %q:\n%s", s, got)
 		}
+	}
+}
+
+func TestDisplayPathPhoneNames(t *testing.T) {
+	t.Setenv("XDG_RUNTIME_DIR", "/run/user/1000")
+	rememberPhoneHost("00008160-000E09260E400036", "Brenden")
+	t.Cleanup(func() { phoneNames.Delete("00008160-000E09260E400036") })
+	cases := map[string]string{
+		"/run/user/1000/gvfs/afc:host=00008160-000E09260E400036":                   "Brenden: /",
+		"/run/user/1000/gvfs/afc:host=00008160-000E09260E400036/DCIM":              "Brenden: /DCIM",
+		"/run/user/1000/gvfs/afc:host=00008160-000E09260E400036:3":                 "App documents on Brenden: /",
+		"/run/user/1000/gvfs/afc:host=00008160-000E09260E400036:3/com.apple.Pages": "App documents on Brenden: /com.apple.Pages",
+		"/run/user/1000/gvfs/afc:host=00008160-000E09260E400036,port=3/Docs":       "App documents on Brenden: /Docs",
+	}
+	for in, want := range cases {
+		if got := displayPath(in); got != want {
+			t.Errorf("%s: %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestAtGvfsMountRoot(t *testing.T) {
+	t.Setenv("XDG_RUNTIME_DIR", "/run/user/1000")
+	root := "/run/user/1000/gvfs/afc:host=00008160-000E09260E400036"
+	if !atGvfsMountRoot(root) {
+		t.Fatalf("mount root")
+	}
+	if atGvfsMountRoot(root + "/DCIM") {
+		t.Fatalf("inside mount is not root")
+	}
+	if atGvfsMountRoot("/run/user/1000/gvfs") {
+		t.Fatalf("gvfs dir itself is not a mount root")
+	}
+	if gvfsMountTop(root+"/DCIM") != root {
+		t.Fatalf("top: %q", gvfsMountTop(root+"/DCIM"))
 	}
 }

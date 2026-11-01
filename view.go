@@ -24,6 +24,9 @@ func (m model) frame() string {
 	m.syncGraphics(inner, rows)
 
 	parentTitle := displayPath(filepath.Dir(m.cwd))
+	if atGvfsMountRoot(m.cwd) {
+		parentTitle = "" // mount root: no raw /run/user/…/gvfs title
+	}
 	files := len(m.entries) - len(virtualRows(m.entries))
 	hint := fmt.Sprintf("%d/%d", min(m.cursor+1, files), files)
 	if m.cfg.Sort != "name" || m.cfg.SortDesc {

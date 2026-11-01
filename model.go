@@ -304,7 +304,9 @@ func (m *model) reload(focus string) {
 	m.applyView(focus)
 
 	m.parent, m.parentCursor = nil, 0
-	if pdir := filepath.Dir(m.cwd); pdir != m.cwd {
+	// At a gvfs mount root (phone, camera, or network share), the parent
+	// would be the raw /run/user/<uid>/gvfs listing — hide it.
+	if pdir := filepath.Dir(m.cwd); pdir != m.cwd && !atGvfsMountRoot(m.cwd) {
 		m.parent, _ = readDir(pdir, m.cfg.ShowHidden)
 		sortEntries(m.parent, m.cfg.Sort, m.cfg.SortDesc)
 		base := filepath.Base(m.cwd)
@@ -812,6 +814,11 @@ func (m model) perform(act action) (model, tea.Cmd) {
 			m.archiveUp()
 		} else if m.inTrash() {
 			m.leaveTrash() // back to home, not into the trash's own internals
+		} else if atGvfsMountRoot(m.cwd) {
+			// Leave the phone/network mount; don't open the raw gvfs folder.
+			if home, err := os.UserHomeDir(); err == nil {
+				m.chdir(home, "")
+			}
 		} else if p := filepath.Dir(m.cwd); p != m.cwd {
 			m.chdir(p, filepath.Base(m.cwd))
 		}

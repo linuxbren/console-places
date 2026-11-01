@@ -130,9 +130,13 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
   - **Phones** — a plugged-in Android phone (`mtp://`), iPhone (`afc://`) or camera (`gphoto2://`)
     shows up under Phones, mounted or not. `enter` mounts it through gvfs (as in Nautilus) and
     opens the folder; `u` (or `d` in the file-list places) ejects it. Folders on it are titled
-    `Pixel 8: /DCIM`. Android needs `gvfs-mtp`, the phone unlocked and set to *File transfer*;
+    `Pixel 8: /DCIM` (or `Brenden: /DCIM` on an iPhone). An iPhone lists two places: the phone
+    itself (photos, music — `afc://UDID/`) and **App documents on …** (`afc://UDID:3/`); gvfs
+    often only advertises the documents volume, so media is synthesized and duplicate shadow
+    mounts are skipped. Android needs `gvfs-mtp`, the phone unlocked and set to *File transfer*;
     iPhone needs `gvfs-afc` plus `usbmuxd` and a tap on *Trust*; cameras need `gvfs-gphoto2`.
-    Previews don't list a phone folder (MTP is slow); opening one still works.
+    Previews don't list a phone folder (MTP is slow); opening one still works. Going up from a
+    phone (or network) mount root leaves the mount instead of opening the raw gvfs folder.
   - **Network** — `c` connects to a server: `smb://` (Windows, Mac, Samba), `sftp://` (anything with
     ssh), `nfs://`, `ftp://`, `dav://`; `\\pc\share` and `user@host:/path` work too. Passwords and
     other questions are asked inside console-places; `ctrl+s` at the password saves it in your keyring,

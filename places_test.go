@@ -1003,6 +1003,135 @@ func TestParseGioPhones(t *testing.T) {
 	}
 }
 
+// Real Omarchy/gvfs dump for an iPhone named Brenden: only the :3 documents
+// location is listed (twice — shadow + daemon), media is not. We must dedupe,
+// synthesize afc://UDID/, and name them Brenden / App documents on Brenden.
+const gioBrendenFixture = `Volume(0): Documents on Brenden
+  Type: GProxyVolume (GProxyVolumeMonitorAfc)
+  uuid=00008160-000E09260E400036
+  activation_root=afc://00008160-000E09260E400036:3/
+  can_mount=1
+  Mount(0): Documents on Brenden -> afc://00008160-000E09260E400036:3/
+    Type: GProxyShadowMount
+    is_shadowed=0
+Mount(1): Documents on Brenden -> afc://00008160-000E09260E400036:3/
+  Type: GDaemonMount
+  is_shadowed=1
+`
+
+func TestParseGioPhonesBrenden(t *testing.T) {
+	udid := "00008160-000E09260E400036"
+	mediaPath := "/run/user/1000/gvfs/afc:host=" + udid
+	docsPath := "/run/user/1000/gvfs/afc:host=" + udid + ":3"
+	local := map[string]string{
+		"afc://" + udid + "/":   mediaPath,
+		"afc://" + udid + ":3/": docsPath,
+	}
+	got := parseGioPhones(gioBrendenFixture, func(uri string) string { return local[uri] })
+	var lines []string
+	for _, p := range got {
+		lines = append(lines, p.name+"|"+p.uri+"|"+p.path+"|"+p.scheme)
+	}
+	want := []string{
+		"Brenden|afc://" + udid + "/|" + mediaPath + "|afc",
+		"App documents on Brenden|afc://" + udid + ":3/|" + docsPath + "|afc",
+	}
+	if strings.Join(lines, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("phones:\n%s\nwant\n%s", strings.Join(lines, "\n"), strings.Join(want, "\n"))
+	}
+	if info := phoneInfo(got[0]); info != "afc://"+udid+"/" {
+		t.Errorf("media info: %q", info)
+	}
+	if info := phoneInfo(phoneVol{name: "Brenden", uri: "afc://" + udid + "/", scheme: "afc"}); info != "media · not mounted" {
+		t.Errorf("unmounted media info: %q", info)
+	}
+	if info := phoneInfo(phoneVol{name: "App documents on Brenden", uri: "afc://" + udid + ":3/", scheme: "afc"}); info != "app documents · not mounted" {
+		t.Errorf("unmounted docs info: %q", info)
+	}
+	if lookupPhoneName(udid) != "Brenden" {
+		t.Errorf("remembered name: %q", lookupPhoneName(udid))
+	}
+}
+
+func TestParseGioPhonesBrendenUnmounted(t *testing.T) {
+	// Volume only — no mounts yet (phone plugged in, not opened).
+	const text = `Volume(0): Documents on Brenden
+  Type: GProxyVolume (GProxyVolumeMonitorAfc)
+  uuid=00008160-000E09260E400036
+  activation_root=afc://00008160-000E09260E400036:3/
+  can_mount=1
+`
+	got := parseGioPhones(text, func(string) string { return "" })
+	if len(got) != 2 {
+		t.Fatalf("got %d: %+v", len(got), got)
+	}
+	if got[0].name != "Brenden" || got[0].uri != "afc://00008160-000E09260E400036/" || got[0].path != "" {
+		t.Fatalf("media: %+v", got[0])
+	}
+	if got[1].name != "App documents on Brenden" || got[1].uri != "afc://00008160-000E09260E400036:3/" {
+		t.Fatalf("docs: %+v", got[1])
+	}
+}
+
+func TestGvfsMountRootParent(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	// Fake a phone mount root under a temp gvfs by pointing XDG_RUNTIME_DIR
+	// at a temp tree that mirrors /run/user/…/gvfs/afc:host=…
+	rt := t.TempDir()
+	t.Setenv("XDG_RUNTIME_DIR", rt)
+	mnt := filepath.Join(rt, "gvfs", "afc:host=00008160-000E09260E400036")
+	if err := os.MkdirAll(filepath.Join(mnt, "DCIM"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Sibling fuse folder that must NOT appear in the parent pane.
+	if err := os.MkdirAll(filepath.Join(rt, "gvfs", "sftp:host=other"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	rememberPhoneHost("00008160-000E09260E400036", "Brenden")
+	t.Cleanup(func() { phoneNames.Delete("00008160-000E09260E400036") })
+
+	m := testModel(t, mnt)
+	if len(m.parent) != 0 {
+		var names []string
+		for _, e := range m.parent {
+			names = append(names, e.name)
+		}
+		t.Fatalf("parent at mount root should be empty, got %v", names)
+	}
+	body := ansi.Strip(m.View())
+	if strings.Contains(body, "sftp:host=other") || strings.Contains(body, filepath.Join(rt, "gvfs")) {
+		t.Fatalf("parent exposed gvfs:\n%s", body)
+	}
+	if !strings.Contains(body, "Brenden: /") {
+		t.Fatalf("title missing phone name:\n%s", body)
+	}
+
+	// Inside the mount, parent lists the phone root (not raw gvfs).
+	m = testModel(t, filepath.Join(mnt, "DCIM"))
+	var parentNames []string
+	for _, e := range m.parent {
+		parentNames = append(parentNames, e.name)
+	}
+	if !strings.Contains(strings.Join(parentNames, ","), "DCIM") {
+		t.Fatalf("parent inside mount: %v", parentNames)
+	}
+	body = ansi.Strip(m.View())
+	if !strings.Contains(body, "Brenden: /DCIM") {
+		t.Fatalf("cwd title:\n%s", body)
+	}
+	if !strings.Contains(body, "Brenden: /") || strings.Contains(body, "sftp:host=other") {
+		t.Fatalf("parent title/content:\n%s", body)
+	}
+
+	// From the mount root, parent key leaves the phone (home), not into gvfs.
+	m = testModel(t, mnt)
+	m = press(t, m, "h")
+	if m.cwd != home {
+		t.Fatalf("leaving mount root: cwd %s want home %s", m.cwd, home)
+	}
+}
+
 func TestPhoneMountError(t *testing.T) {
 	ph := phoneVol{name: "Pixel 8", uri: "mtp://Pixel_8/", scheme: "mtp"}
 	if got := phoneMountError(ph, "gio: mtp://Pixel_8/: Location is not mountable\n", errors.New("exit 1"), nil); !strings.Contains(got.Error(), "gvfs-mtp") {
