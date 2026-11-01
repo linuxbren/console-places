@@ -59,6 +59,16 @@ originally from [tideui](https://github.com/allisonhere/tideui) by [@allisonhere
     <td align="center">File icons; code isn't wrapped by default · Gruvbox</td>
     <td align="center"><code>w</code> wraps code too · Kanagawa</td>
   </tr>
+  <tr>
+    <td><img src="docs/screenshots/phones-places.png" alt="Places (b) with a Phones section: Brenden and App documents on Brenden (not mounted); Network hostnames and the iPhone UDID blurred (Dracula theme)"></td>
+    <td><img src="docs/screenshots/phones.png" alt="Browsing Brenden: /DCIM/108APPLE on a plugged-in iPhone with IMG_8720.JPG previewed (Dracula theme)"></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td align="center">Phones in places (<code>b</code>) · Dracula</td>
+    <td align="center">iPhone DCIM browse · Dracula</td>
+    <td></td>
+  </tr>
 </table>
 
 - **Three panes** — parent, current folder, and a preview (yazi-style). `shift+←/→` resizes the preview, `p` hides it.
